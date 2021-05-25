@@ -34,16 +34,13 @@ local Predef = {
 }
 Predef.nl = Predef.cn
 
--- Fold table captures to the left
-function Predef.lfold(a, b)
-  a[#a+1] = b
-  return a
-end
-
 -- Fold table captures to the right.
 function Predef.rfold(a, b)
-  b[#b+1] = a
-  return b
+  if b then
+    b[#b+1] = a
+    return b
+  end
+  return a
 end
 
 -- Error descripts.

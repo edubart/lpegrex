@@ -502,8 +502,11 @@ it("auxiliary functions", function()
   eq(match('ff', '({%x+} $16) -> tonumber'), 0xff)
   eq(match('65', '%d+ -> tochar'), string.char(65))
   eq(match('41', '({%x+} $16) -> tochar'), string.char(0x41))
-  eq(match('alo xuxu', '({|{%a+}|}%s*{|{%a+}|}) -> rfold'), {'xuxu', {'alo'}})
-  eq(match('alo xuxu', '({|{%a+}|}%s*{|{%a+}|}) -> lfold'), {'alo', {'xuxu'}})
+
+  local c = compile([[( ({|{%a+}|}%s*)* ) ~> rfold]])
+  eq(c:match('a'), {'a'})
+  eq(c:match('a b'), {'b', {'a'}})
+  eq(c:match('a b c'), {'c', {'b', {'a'}}})
 end)
 
 it("expected matches", function()

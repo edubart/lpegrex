@@ -40,7 +40,6 @@ programming language compiler.
     * `totrue` Substitute captures by `true`.
     * `tofalse` Substitute captures by `false`.
     * `tonil` Substitute captures by `nil`.
-    * `lfold` Fold table captures to the left.
     * `rfold` Fold table captures to the right.
 
 ## Planned features
