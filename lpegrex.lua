@@ -13,11 +13,26 @@ local lpegrex = {}
 -- Cache tables for `match`, `find` and `gsub`.
 local mcache, fcache, gcache
 
+local utf8char = utf8 and utf8.char or string.char
+
 -- Predefined patterns.
+local Any = lpeg.P(1)
 local Predef = {
-  any = lpeg.P(1),
-  nl = lpeg.P'\n',
+  ca = lpeg.P"\a", -- audible bell
+  cb = lpeg.P"\b", -- back feed
+  ct = lpeg.P"\t", -- horizontal tab
+  cn = lpeg.P"\n", -- new line
+  cv = lpeg.P"\v", -- vertical tab
+  cf = lpeg.P"\f", -- form feed
+  cr = lpeg.P"\r", -- carriage return
+
+  tonil = function() return nil end,
+  tofalse = function() return false end,
+  totrue = function() return true end,
+  tochar = function(s, base) return utf8char(tonumber(s, base)) end,
+  tonumber = tonumber,
 }
+Predef.nl = Predef.cn
 
 -- Error descripts.
 local ErrorDescs = {
@@ -41,7 +56,8 @@ local ErrorDescs = {
   ExpName1 = "expected the name of a rule after '=>'",
   ExpName2 = "expected the name of a rule after '=' (no space)",
   ExpName3 = "expected the name of a rule after '<' (no space)",
-  ExpName4 = "expected the name of a rule after '$' (no space)",
+  ExpName4 = "expected a name, number or string rule after '$' (no space)",
+  ExpName5 = "expected a name or string rule after '@' (no space)",
 
   ExpLab1 = "expected a label after '{'",
 
@@ -76,16 +92,16 @@ function lpegrex.updatelocale()
   Predef.u = Predef.upper
   Predef.w = Predef.alnum
   Predef.x = Predef.xdigit
-  Predef.A = Predef.any - Predef.a
-  Predef.C = Predef.any - Predef.c
-  Predef.D = Predef.any - Predef.d
-  Predef.G = Predef.any - Predef.g
-  Predef.L = Predef.any - Predef.l
-  Predef.P = Predef.any - Predef.p
-  Predef.S = Predef.any - Predef.s
-  Predef.U = Predef.any - Predef.u
-  Predef.W = Predef.any - Predef.w
-  Predef.X = Predef.any - Predef.x
+  Predef.A = Any - Predef.a
+  Predef.C = Any - Predef.c
+  Predef.D = Any - Predef.d
+  Predef.G = Any - Predef.g
+  Predef.L = Any - Predef.l
+  Predef.P = Any - Predef.p
+  Predef.S = Any - Predef.s
+  Predef.U = Any - Predef.u
+  Predef.W = Any - Predef.w
+  Predef.X = Any - Predef.x
   mcache, fcache, gcache = {}, {}, {}
   local weakmt = {__mode = "v"}
   setmetatable(mcache, weakmt)
@@ -97,7 +113,7 @@ lpegrex.updatelocale()
 
 local function make_lpegrex_pattern()
   local l = lpeg
-  local lmt = getmetatable(l.P(0))
+  local lmt = getmetatable(Any)
 
   local function expect(pattern, label)
     return pattern + l.T(label)
@@ -154,24 +170,24 @@ local function make_lpegrex_pattern()
     return l.V(n)
   end
 
-  local S = (Predef.space + "--" * (Predef.any - Predef.nl)^0)^0
+  local S = (Predef.space + "--" * (Any - Predef.nl)^0)^0
   local Name = l.C(l.R("AZ", "az", "__") * l.R("AZ", "az", "__", "09")^0)
   local Arrow = S * "<-"
   local Num = l.C(l.R"09"^1) * S / tonumber
   local SignedNum = l.C(l.P"-"^-1 * l.R"09"^1) * S / tonumber
-  local String = "'" * l.C((Predef.any - "'")^0) * expect("'", "MisTerm1")
-               + '"' * l.C((Predef.any - '"')^0) * expect('"', "MisTerm2")
+  local String = "'" * l.C((Any - "'")^0) * expect("'", "MisTerm1")
+               + '"' * l.C((Any - '"')^0) * expect('"', "MisTerm2")
   local Token = "`" * l.C(Predef.punct * (Predef.punct - '`')^0) * expect("`", "MisTerm3")
-  local Keyword = "`" * l.C(Predef.alpha * (Predef.any - "`")^0) * expect('`', "MisTerm3")
-  local Range = l.Cs(Predef.any * (l.P"-"/"") * (Predef.any - "]")) / l.R
+  local Keyword = "`" * l.C(Predef.alpha * (Any - "`")^0) * expect('`', "MisTerm3")
+  local Range = l.Cs(Any * (l.P"-"/"") * (Any - "]")) / l.R
   local Def = Name * l.Carg(1) -- a defined name only have meaning in a given environment
   local Defined = "%" * Def / getdef
-  local Item = (Defined + Range + l.C(Predef.any)) / l.P
+  local Item = (Defined + Range + l.C(Any)) / l.P
   local Class =
       "["
     * (l.C(l.P"^"^-1)) -- optional complement symbol
     * l.Cf(expect(Item, "ExpItem") * (Item - "]")^0, lmt.__add)
-      / function(c, p) return c == "^" and Predef.any - p or p end
+      / function(c, p) return c == "^" and Any - p or p end
     * expect("]", "MisClose8")
 
   -- match a name and return a group of its corresponding definition
@@ -221,21 +237,25 @@ local function make_lpegrex_pattern()
             + "=" * expect(Name, "ExpName2")
               / function(n) return l.Cmt(l.Cb(n), equalcap) end
             + l.P"{}" / l.Cp
-            + l.P"$" *  ( l.P"nil" / function() return l.Cc(nil) end
-                        + l.P"false" / function() return l.Cc(false) end
-                        + l.P"true" / function() return l.Cc(true) end
-                        + SignedNum / function(s) return l.Cc(tonumber(s)) end
-                        + String / function(s) return l.Cc(s) end
-                        + (Def / getdef) / l.Cc)
-            + l.P"@" *  ( String / function(s) return l.P(s) + l.T('ExpectedString_'..s) end
-                        + Name * l.Cb("G") / function(n, b) return NT(n, b) + l.T('Expected_'..n) end)
+            + l.P"$" * expect(l.P"nil" / function() return l.Cc(nil) end
+                            + l.P"false" / function() return l.Cc(false) end
+                            + l.P"true" / function() return l.Cc(true) end
+                            + SignedNum / function(s) return l.Cc(tonumber(s)) end
+                            + String / function(s) return l.Cc(s) end
+                            + (Def / getdef) / l.Cc,
+                            "ExpName4")
+            + l.P"@" * expect(String / function(s) return l.P(s) + l.T('Expected_'..s) end
+                            + Token / function(s) return (l.P(s) * l.V("SKIP")) + l.T('Expected_'..s) end
+                            + Keyword / function(s) return (l.P(s) * l.V("SKIP")) + l.T('Expected_'..s) end
+                            + Name * l.Cb("G") / function(n, b) return NT(n, b) + l.T('ExpectedRule_'..n) end,
+                            "ExpName5")
             + "{~" * expect(l.V"Exp", "ExpPatt6")
               * expect(S * "~}", "MisClose3") / l.Cs
             + "{|" * expect(l.V"Exp", "ExpPatt7")
               * expect(S * "|}", "MisClose4") / l.Ct
             + "{" * expect(l.V"Exp", "ExpPattOrClose")
               * expect(S * "}", "MisClose5") / l.C
-            + l.P"." * l.Cc(Predef.any)
+            + l.P"." * l.Cc(Any)
             + (Name * -Arrow + "<" * expect(Name, "ExpName3")
                * expect(">", "MisClose6")) * l.Cb("G") / NT;
     Label = Num + Name;
@@ -246,7 +266,7 @@ local function make_lpegrex_pattern()
   }
 
   return S * l.Cg(l.Cc(false), "G") * expect(exp, "NoPatt") / l.P
-           * S * expect(-Predef.any, "ExtraChars")
+           * S * expect(-Any, "ExtraChars")
 end
 
 

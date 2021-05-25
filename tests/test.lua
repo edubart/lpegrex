@@ -462,7 +462,22 @@ it("error labels with captures", function()
   eq({"44", "58", "123"}, {c:match("44 a 123")})
 end)
 
-it("forced captures", function()
+end)
+
+describe("lpegrex extensions", function()
+
+it("control characters patterns", function()
+  eq(match('\a', "%ca"), 2)
+  eq(match('\b', "%cb"), 2)
+  eq(match('\f', "%cf"), 2)
+  eq(match('\n', "%cn"), 2)
+  eq(match('\r', "%cr"), 2)
+  eq(match('\t', "%ct"), 2)
+  eq(match('\v', "%cv"), 2)
+  eq(match('\a\b\f\n\r\t\v', "%ca"), 2)
+end)
+
+it("arbitrary captures", function()
   local c = compile([[$nil $true $false $myvar]], { myvar = 'hello'})
   eq({nil, true, false, 'hello'}, {c:match('')})
 
@@ -479,19 +494,38 @@ it("token and keywords literals", function()
            [[A <- `local` `function` `(` `)` SKIP <- %s*]]), 17)
 end)
 
+it("auxiliary functions", function()
+  eq(match('dummy', '%a+ -> tonil'), nil)
+  eq(match('dummy', '%a+ -> tofalse'), false)
+  eq(match('dummy', '%a+ -> totrue'), true)
+  eq(match('1234', '%d+ -> tonumber'), 1234)
+  eq(match('ff', '({%x+} $16) -> tonumber'), 0xff)
+  eq(match('65', '%d+ -> tochar'), string.char(65))
+  eq(match('41', '({%x+} $16) -> tochar'), string.char(0x41))
+end)
+
 it("expected matches", function()
-  local c = compile[[@'test' %s* @'aaaa']]
+  local c = compile[[@'test' %s* @"aaaa"]]
   eq(c:match'test aaaa', 10)
-  eq({nil, 'ExpectedString_test', 1}, {c:match'tesi aaaa'})
-  eq({nil, 'ExpectedString_aaaa', 6}, {c:match'test aaab'})
+  eq({nil, 'Expected_test', 1}, {c:match'tesi aaaa'})
+  eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
+
+  c = compile[[
+    rules <- @`test` @`aaaa`
+    SKIP <- %s*
+  ]]
+  eq(c:match'test aaaa', 10)
+  eq({nil, 'Expected_test', 1}, {c:match'tesi aaaa'})
+  eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
 
   c = compile[[
     rules <- @test %s* @aaaa
     test <- 'test'
     aaaa <- 'aaaa'
   ]]
-  eq({nil, 'Expected_test', 1}, {c:match'tesi aaaa'})
-  eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
+  eq({nil, 'ExpectedRule_test', 1}, {c:match'tesi aaaa'})
+  eq({nil, 'ExpectedRule_aaaa', 6}, {c:match'test aaab'})
+
 end)
 
 it("grammar syntax errors", function()
@@ -500,3 +534,4 @@ end)
 
 end)
 
+lester.report()

@@ -31,6 +31,9 @@ programming language compiler.
 * New syntax for throwing labels errors on failure of expected matches (e.g. `@rule`).
 * New syntax for matching tokens with automatic skipping (e.g. `` `,` ``).
 * New syntax for matching keywords with automatic skipping (e.g. `` `function` ``).
+* Pre defined auxiliary functions:
+    * `tonumber`
+    * `tochar`
 
 ## Planned features
 
