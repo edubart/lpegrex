@@ -503,10 +503,25 @@ it("auxiliary functions", function()
   eq(match('65', '%d+ -> tochar'), string.char(65))
   eq(match('41', '({%x+} $16) -> tochar'), string.char(0x41))
 
-  local c = compile([[( ({|{%a+}|}%s*)* ) ~> rfold]])
-  eq(c:match('a'), {'a'})
-  eq(c:match('a b'), {'b', {'a'}})
-  eq(c:match('a b c'), {'c', {'b', {'a'}}})
+  local c = compile "{| {%d+} %s* |}+ ~> foldleft"
+  eq({"1"}, c:match("1"))
+  eq({{"1"},"2"}, c:match("1 2"))
+  eq({{{"1"},"2"},"3"}, c:match("1 2 3"))
+
+  c = compile "{| {%d+} %s* |}+ -> foldright"
+  eq({"1"}, c:match("1"))
+  eq({"1",{"2"}}, c:match("1 2"))
+  eq({"1",{"2",{"3"}}}, c:match("1 2 3"))
+
+  c = compile "{| {%d+} %s* |}+ -> rfoldleft"
+  eq({"1"}, c:match("1"))
+  eq({{"2"},"1"}, c:match("1 2"))
+  eq({{{"3"},"2"},"1"}, c:match("1 2 3"))
+
+  c = compile "{| {%d+} %s* |}+ ~> rfoldright"
+  eq({"1"}, c:match("1"))
+  eq({"2",{"1"}}, c:match("1 2"))
+  eq({"3",{"2",{"1"}}}, c:match("1 2 3"))
 end)
 
 it("expected matches", function()

@@ -34,13 +34,54 @@ local Predef = {
 }
 Predef.nl = Predef.cn
 
--- Fold table captures to the right.
-function Predef.rfold(a, b)
-  if b then
-    b[#b+1] = a
-    return b
+local insert = table.insert
+
+-- Fold tables to the left (use only with `~>`).
+-- Example: ({1}, {2}, {3}) -> {{{1}, 2}, 3}
+function Predef.foldleft(lhs, rhs)
+  if rhs then
+    insert(rhs, 1, lhs)
+    return rhs
   end
-  return a
+  return lhs
+end
+
+-- Fold tables to the right (use only with `->`).
+-- Example: ({1}, {2}, {3}) -> {1, {2, {3}}}}
+function Predef.foldright(first, ...)
+  if ... then
+    local lhs = first
+    for i=1,select('#', ...) do
+      local rhs = select(i, ...)
+      lhs[#lhs+1] = rhs
+      lhs = rhs
+    end
+  end
+  return first
+end
+
+-- Fold tables to the left in reverse order (use only with `->`).
+-- Example: ({1}, {2}, {3}) -> {{{3}, 2}, 1}
+function Predef.rfoldleft(first, ...)
+  if ... then
+    local rhs = first
+    for i=1,select('#', ...) do
+      local lhs = select(i, ...)
+      insert(rhs, 1, lhs)
+      rhs = lhs
+    end
+  end
+  return first
+end
+
+-- Fold tables to the right in reverse order (use only with `~>`)
+-- Example: ({1}, {2}, {3}) -> {3, {2, {1}}
+function Predef.rfoldright(lhs, rhs)
+  if rhs then
+    rhs[#rhs+1] = lhs
+    return rhs
+  end
+  return lhs
 end
 
 -- Error descripts.

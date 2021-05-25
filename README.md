@@ -40,7 +40,10 @@ programming language compiler.
     * `totrue` Substitute captures by `true`.
     * `tofalse` Substitute captures by `false`.
     * `tonil` Substitute captures by `nil`.
-    * `rfold` Fold table captures to the right.
+    * `foldleft` Fold tables to the left (use only with `~>`).
+    * `foldright` Fold tables to the left (use only with `->`).
+    * `rfoldleft` Fold tables to the left in reverse order (use only with `->`).
+    * `rfoldright` Fold tables to the right in reverse order (use only with `~>`)
 
 ## Planned features
 
