@@ -478,8 +478,8 @@ it("control characters patterns", function()
 end)
 
 it("arbitrary captures", function()
-  local c = compile([[$nil $true $false $myvar]], { myvar = 'hello'})
-  eq({nil, true, false, 'hello'}, {c:match('')})
+  local c = compile([[$nil $true $false ${} $myvar]], { myvar = 'hello'})
+  eq({nil, true, false, {}, 'hello'}, {c:match('')})
 
   c = compile([[$'text' $"something" $0 $-1]])
   eq({'text', "something", 0, -1}, {c:match('')})
@@ -502,6 +502,8 @@ it("auxiliary functions", function()
   eq(match('ff', '({%x+} $16) -> tonumber'), 0xff)
   eq(match('65', '%d+ -> tochar'), string.char(65))
   eq(match('41', '({%x+} $16) -> tochar'), string.char(0x41))
+  eq(match('alo xuxu', '({|{%a+}|}%s*{|{%a+}|}) -> rfold'), {'xuxu', {'alo'}})
+  eq(match('alo xuxu', '({|{%a+}|}%s*{|{%a+}|}) -> lfold'), {'alo', {'xuxu'}})
 end)
 
 it("expected matches", function()
@@ -526,6 +528,26 @@ it("expected matches", function()
   eq({nil, 'ExpectedRule_test', 1}, {c:match'tesi aaaa'})
   eq({nil, 'ExpectedRule_aaaa', 6}, {c:match'test aaab'})
 
+end)
+
+it("table capture", function()
+  local c = compile[[
+    chunk  <-- Numbers
+    Numbers <-| NUMBER NUMBER
+    NUMBER <-- {%d+} SKIP
+    SKIP   <-- %s*
+  ]]
+  eq({"1234", "5678"}, c:match('1234 5678'))
+end)
+
+it("node capture", function()
+  local c = compile[[
+    chunk  <-- Number
+    Number <== NUMBER
+    NUMBER <-- {%d+} SKIP
+    SKIP   <-- %s*
+  ]]
+  eq({tag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
 end)
 
 it("grammar syntax errors", function()

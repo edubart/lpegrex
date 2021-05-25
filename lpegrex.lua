@@ -34,6 +34,18 @@ local Predef = {
 }
 Predef.nl = Predef.cn
 
+-- Fold table captures to the left
+function Predef.lfold(a, b)
+  a[#a+1] = b
+  return a
+end
+
+-- Fold table captures to the right.
+function Predef.rfold(a, b)
+  b[#b+1] = a
+  return b
+end
+
 -- Error descripts.
 local ErrorDescs = {
   NoPatt = "no pattern found",
@@ -172,7 +184,10 @@ local function make_lpegrex_pattern()
 
   local S = (Predef.space + "--" * (Any - Predef.nl)^0)^0
   local Name = l.C(l.R("AZ", "az", "__") * l.R("AZ", "az", "__", "09")^0)
-  local Arrow = S * "<-"
+  local NodeArrow = S * "<=="
+  local TableArrow = S * "<-|"
+  local RuleArrow = S * (l.P"<--" + "<-")
+  local Arrow = NodeArrow + TableArrow + RuleArrow
   local Num = l.C(l.R"09"^1) * S / tonumber
   local SignedNum = l.C(l.P"-"^-1 * l.R"09"^1) * S / tonumber
   local String = "'" * l.C((Any - "'")^0) * expect("'", "MisTerm1")
@@ -240,6 +255,7 @@ local function make_lpegrex_pattern()
             + l.P"$" * expect(l.P"nil" / function() return l.Cc(nil) end
                             + l.P"false" / function() return l.Cc(false) end
                             + l.P"true" / function() return l.Cc(true) end
+                            + l.P"{}" / function() return l.Cc({}) end
                             + SignedNum / function(s) return l.Cc(tonumber(s)) end
                             + String / function(s) return l.Cc(s) end
                             + (Def / getdef) / l.Cc,
@@ -259,9 +275,16 @@ local function make_lpegrex_pattern()
             + (Name * -Arrow + "<" * expect(Name, "ExpName3")
                * expect(">", "MisClose6")) * l.Cb("G") / NT;
     Label = Num + Name;
-    Definition = Name * Arrow * expect(l.V"Exp", "ExpPatt8");
+    RuleDefinition = Name * RuleArrow * expect(l.V"Exp", "ExpPatt8");
+    TableDefinition = Name * TableArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
+        return n, l.Ct(p)
+      end;
+    NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
+        return n, l.Ct(l.Cg(l.Cc(n), 'tag') * l.Cg(l.Cp(), 'pos') * p * l.Cg(l.Cp(), 'endpos'))
+      end;
+    Definition = l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
     Grammar = l.Cg(l.Cc(true), "G")
-              * l.Cf(l.V"Definition" / firstdef * (S * l.Cg(l.V"Definition"))^0,
+              * l.Cf((l.V"Definition") / firstdef * (S * (l.Cg(l.V"Definition")))^0,
                   adddef) / l.P;
   }
 

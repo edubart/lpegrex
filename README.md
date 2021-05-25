@@ -31,13 +31,20 @@ programming language compiler.
 * New syntax for throwing labels errors on failure of expected matches (e.g. `@rule`).
 * New syntax for matching tokens with automatic skipping (e.g. `` `,` ``).
 * New syntax for matching keywords with automatic skipping (e.g. `` `function` ``).
+* New syntax for rules that capture AST Nodes (e.g. `NodeName <== patt`).
+* New syntax for rules that capture tables (e.g. `MyList <-| patt`).
+* Alternative syntax from common rules (e.g. `rule <-- patt`).
 * Pre defined auxiliary functions:
-    * `tonumber`
-    * `tochar`
+    * `tonumber` Substitute a numeric capture by a number.
+    * `tochar` Substitute a numeric capture by an UTF-8 character.
+    * `totrue` Substitute captures by `true`.
+    * `tofalse` Substitute captures by `false`.
+    * `tonil` Substitute captures by `nil`.
+    * `lfold` Fold table captures to the left.
+    * `rfold` Fold table captures to the right.
 
 ## Planned features
 
-* New syntax for capturing AST nodes.
 * Builtin utilities for folding AST nodes.
 * Builtin but overridable `SKIP`, `NAME_PREFIX`, `NAME_SUFFIX` rules.
 * Builtin automatic generated `NAME` and `KEYWORD` rules.
