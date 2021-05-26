@@ -52,6 +52,92 @@ programming language compiler.
     * `rfoldleft` Fold tables to the left in reverse order (use only with `->`).
     * `rfoldright` Fold tables to the right in reverse order (use only with `~>`)
 
+## Quick References
+
+For reference on how to use `re` and its syntax, please check [its manual](http://www.inf.puc-rio.br/~roberto/lpeg/re.html) first.
+
+Here is a quick reference of the new syntax additions:
+
+| Purpose | Example Syntax | Equivalent Re Syntax |
+|-|-|-|
+| Rule | `name <-- patt` | `name <- patt` |
+| Capture node rule | `Node <== patt` | `Node <- {\| {:pos:{}:} {:tag:''->'Node':} patt {:endpos:{}:} \|}` |
+| Capture tagged node rule | `name : Node <== patt` | `name <- {\| {:pos:{}:} {:tag:''->'Node':} patt {:endpos:{}:} \|}` |
+| Capture table rule | `name <-\| patt` | `name <- {\| patt \|}` |
+| Match keyword | `` `keyword` `` | `'keyword' !NAME_SUFFIX SKIP` |
+| Match token | `` `.` `..` `` | `!('..' SKIP) '.' SKIP '..' SKIP` |
+| Match control code | `%cn` | `%nl` |
+| Arbitrary capture | `$'string'` | `''->'string'` |
+| Expected match | `@'string' @rule` | `'string'^Expected_string rule^Expected_rule` |
+
+## Folding auxiliary functions
+
+Here by folding we mean reducing a list of table captures into a single table.
+This is useful when generating ASTs because often we need to reduce
+a list of AST nodes into a single AST node.
+There following table demonstrates the four ways to fold a list of nodes:
+
+| Purpose | Example Input | Corresponding Output | Syntax |
+|-|-|-|-|
+| Fold tables to the left | `{1}, {2}, {3}` | `{{{1}, 2}, 3}` | `patt ~> foldleft` |
+| Fold tables to the right | `{1}, {2}, {3}` | `{1, {2, {3}}}}` | `patt -> foldright` |
+| Fold tables to the left in reverse order | `{1}, {2}, {3}` | `{{{3}, 2}, 1}` | `patt -> rfoldleft` |
+| Fold tables to the right in reverse order | `{1}, {2}, {3}` | `{{{3}, 2}, 1}` | `patt ~> rfoldright` |
+
+Where the pattern `patt` captures a list of tables with a least one capture.
+Note that depending on the fold operation you must use its correct arrow (`->` or `~>`).
+
+## Capture auxiliary syntax
+
+Sometimes is useful to match empty strings and capture some arbitrary values,
+the following tables show auxiliary syntax to help on that:
+
+| Syntax | Captured Lua Value |
+|-|-|
+| `$nil` | `nil` |
+| `$true` | `true` |
+| `$false` | `false` |
+| `$name` | `defs[name]` |
+| `${}` | `{}` |
+| `$16` | `16` |
+| `$'string'` | `"string"` |
+
+## Capture auxiliary functions
+
+Sometimes is we need to substitute a list of captures to a lua value,
+the following tables show auxiliary functions to help on that:
+
+| Purpose | Syntax | Captured Lua Value |
+|-|-|-|
+| Substitute captures by `nil` | `p -> tonil ` | `nil` |
+| Substitute captures by `false` | `p -> tofalse ` | `false` |
+| Substitute captures by `true` | `p -> tofalse ` | `true` |
+| Substitute a capture by a number | `p -> tonumber ` | Corresponding number of a captured |
+| Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of a captured code |
+
+## User defined rules
+
+When using keywords ot token syntax the user must always define the
+`SKIP` and `NAME_SUFFIX` rules. In most cases something like:
+
+```
+NAME_SUFFIX   <- [_%w]+
+SKIP          <- %s+
+```
+
+You may want to edit the `SKIP` rule to consider comments if you grammar supports them.
+
+Often we need to generate a rule to capture names that but ignore grammar keywords, let call it `NAME`.
+To assist doing this the `KEYWORD` rule is automatically generated based on all defined keywords in
+the grammar, the user can use it to define the `NAME` rule, in most cases something like:
+
+```
+NAME          <-- !KEYWORD {NAME_PREFIX NAME_SUFFIX?} SKIP
+NAME_PREFIX   <-- [_%a]
+NAME_SUFFIX   <-- [_%w]+
+SKIP          <- %s+
+```
+
 ## Tests
 
 Most LPeg/LPegLabel tests where migrated into `tests/test.lua`

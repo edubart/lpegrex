@@ -600,6 +600,70 @@ it("node capture", function()
   eq({tag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
 end)
 
+it("quick ref examples", function()
+  eq({match('x',[[
+    name <-- patt
+    patt <- .
+  ]])}, {match('x',[[
+    name <- patt
+    patt <- .
+  ]])})
+
+  eq({match('x',[[
+    Node <== patt
+    patt <- .
+  ]])}, {match('x',[[
+    Node <- {| {:pos:{}:} {:tag:''->'Node':} patt {:endpos:{}:} |}
+    patt <- .
+  ]])})
+
+  eq({match('x',[[
+    name : Node <== patt
+    patt <- .
+  ]])}, {match('x',[[
+    name <- {| {:pos:{}:} {:tag:''->'Node':} patt {:endpos:{}:} |}
+    patt <- .
+  ]])})
+
+  eq({match('keyword ',[[
+    G <- `keyword`
+    NAME_SUFFIX <- [_%w]+
+    SKIP <- %s*
+  ]])}, {match('keyword ',[[
+    G <- 'keyword' !NAME_SUFFIX SKIP
+    NAME_SUFFIX <- [_%w]+
+    SKIP <- %s*
+  ]])})
+
+  eq({match('. .. ',[[
+    G <- `.` `..`
+    SKIP <- %s*
+  ]])}, {match('. .. ',[[
+    G <- !('..' SKIP) '.' SKIP '..' SKIP
+    SKIP <- %s*
+  ]])})
+
+  eq({match('\n',[[
+    %cn
+  ]])}, {match('\n',[[
+    %nl
+  ]])})
+
+  eq({match('',[[
+    $'string'
+  ]])}, {match('',[[
+    ''->'string'
+  ]])})
+
+  eq({match('x',[[
+    G <- @'string' @rule
+    rule <- .
+  ]])}, {match('x',[[
+    G <- 'string'^Expected_string rule^Expected_rule
+    rule <- .
+  ]])})
+end)
+
 it("grammar syntax errors", function()
   -- expect.fail(function() compile([[~]]) end, "asd")
 end)
