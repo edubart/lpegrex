@@ -7,7 +7,7 @@ LPegRex is an re-implementation of
 easy to parse language grammars into an AST (abstract syntax tree)
 while maintaining readability.
 
-LPegRex stands for *LPeg Regular Expression eXtended.
+LPegRex stands for *LPeg Regular Expression eXtended*.
 
 ## Goals
 
@@ -39,6 +39,7 @@ programming language compiler.
 * Auto generate `KEYWORD` rule based on used keywords in the grammar.
 * Use supplied `NAME_SUFFIX` rule for generating each keyword rule.
 * Use supplied `SKIP` rule for generating each keyword or token rule.
+* Capture nodes with initial and final positions.
 * Pre define some useful auxiliary functions:
     * `tonil` Substitute captures by `nil`.
     * `totrue` Substitute captures by `true`.
@@ -76,8 +77,8 @@ for common patterns used when defining programming language grammars.
 
 Here by folding we mean reducing a list of table captures into a single table.
 This is useful when generating ASTs because often we need to reduce
-a list of AST nodes into a single AST node.
-There following table demonstrates the four ways to fold a list of nodes:
+a list of AST nodes into a single AST node (e.g. when reducing a call chain).
+The following table demonstrates the four ways to fold a list of nodes:
 
 | Purpose | Example Input | Corresponding Output | Syntax |
 |-|-|-|-|
@@ -115,8 +116,31 @@ the following tables show auxiliary functions to help on that:
 | Substitute captures by `false` | `p -> tofalse ` | `false` |
 | Substitute captures by `true` | `p -> tofalse ` | `true` |
 | Substitute captures by `{}` | `p -> toemptytable ` | `{}` |
-| Substitute a capture by a number | `p -> tonumber ` | Corresponding number of a captured |
-| Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of a captured code |
+| Substitute a capture by a number | `p -> tonumber ` | Corresponding number of the captured |
+| Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of the captured code |
+
+## Captured node fields
+
+By default when capturing a node with `<==` syntax, LPegRex will set the following 3 fields:
+
+* `pos` Initial position of the node capture
+* `endpos` Final position of the node capture
+* `tag` Tag name of the node
+
+The user can customize to change these field names or to disable them by
+setting it's corresponding name in the `defs.__options` table when compiling the grammar,
+for example:
+
+```lua
+local mypatt = rex.compile(mygrammar, {__options = {
+  tag = 'name', -- 'tag' field rename to 'name'
+  pos = 'init', -- 'pos' field renamed to 'init'
+  endpos = false, -- don't capture node final position
+}})
+```
+
+The fields `pos` and `endpos` are useful to generate error messages with precise location
+later when analyzing the AST. The `tag` field is used to distinguish the node type.
 
 ## User defined rules
 
@@ -170,7 +194,7 @@ assert(json, errlabel)
 
 The above should parse into the following equivalent AST table:
 ```lua
-{ tag = "Array", pos = 1, endpos = 73,
+local json = { tag = "Array", pos = 1, endpos = 73,
   { tag = "Object", pos = 2, endpos = 72,
     { tag = "Member", pos = 3, endpos = 24,
     "string","some\ntext" },
@@ -184,6 +208,16 @@ The above should parse into the following equivalent AST table:
 }
 ```
 
+## Complete Examples
+
+* Lua 5.4 syntax is defined in
+[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
+it servers as a good example on how to define a full language grammar in a single PEG
+that generates an AST suitable to be analyzed by a compiler.
+
+* A JSON parser is defined in a single PEG in
+[tests/json.lua](https://github.com/edubart/lpegrex/blob/main/tests/json.lua).
+
 ## Dependencies
 
 To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
@@ -195,15 +229,6 @@ Most LPeg/LPegLabel tests where migrated into `tests/test.lua`
 and new tests for the addition extensions were added.
 
 To run the tests just run `lua tests/test.lua`.
-
-## Examples
-
-* Lua 5.4 syntax is defined in
-[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
-it servers as a good example on how to parse a language grammars into an AST from a single PEG.
-
-* A JSON parser is defined in a single PEG in
-[tests/json.lua](https://github.com/edubart/lpegrex/blob/main/tests/json.lua).
 
 ## License
 

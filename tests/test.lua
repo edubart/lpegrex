@@ -502,7 +502,7 @@ it("matching unique tokens", function()
     Dot3 <== `...` NAME
     NAME <- {%w+} SKIP
     SKIP <- %s*
-  ]], nil, {pos=false, endpos=false})
+  ]],{__options={pos=false, endpos=false}})
   eq({{tag="Dot1", "1"}, {tag="Dot2", "2"}, {tag="Dot3", "3"}}, c:match('.1 ..2 ...3'))
   eq({{tag="Dot3", "3"}, {tag="Dot2", "2"}, {tag="Dot1", "1"}}, c:match('...3 ..2 .1'))
 end)
@@ -516,7 +516,7 @@ it("matching unique keywords", function()
     NAME_PREFIX <-- [_%a]
     NAME_SUFFIX <- [_%w]+
     SKIP <- %s*
-  ]], nil, {pos=false, endpos=false})
+  ]], {__options={pos=false, endpos=false}})
   eq({{tag="Else"}, {tag="ElseIf"}, 'elsedummy'}, c:match('else elseif elsedummy'))
   eq({'elsedummy', {tag="ElseIf"}, {tag="Else"}}, c:match('elsedummy elseif else'))
 end)

@@ -8,6 +8,9 @@ See end of file for LICENSE.
 -- LPegRex depends on LPegLabel.
 local lpeg = require 'lpeglabel'
 
+-- Increase LPEG max stack, because the default is too low for use with complex grammars.
+lpeg.setmaxstack(1024)
+
 -- The LPegRex module table.
 local lpegrex = {}
 
@@ -444,11 +447,11 @@ The optional `options table can provide the following options for node captures:
 * `pos` name of the node initial position field, if `false` it's omitted (default "pos").
 * `endpos` name of the node final position field, if `false` it's omitted (default "endpos").
 ]]
-function lpegrex.compile(pattern, defs, options)
+function lpegrex.compile(pattern, defs)
   if lpeg.type(pattern) == 'pattern' then -- already compiled
     return pattern
   end
-  rexoptions = options
+  rexoptions = defs and defs.__options
   local cp, label, pos = rexpatt:match(pattern, 1, defs)
   rexoptions = nil
   if not cp then
