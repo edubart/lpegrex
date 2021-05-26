@@ -13,13 +13,13 @@ LPegRex stands for *LPeg Regular Expression eXtended*.
 
 The goal of this library is to extended the LPeg
 [re module](http://www.inf.puc-rio.br/~roberto/lpeg/re.html)
-with some minor extensions to make easy parsing a whole
+with some minor additions to make easy parsing a whole
 programming language grammar to an abstract syntax tree
 using a single, simple, compact and clear PEG grammar.
 
 For instance is in the goal of the project parsing the complete
 Lua 5.4 syntax into an abstract syntax tree under 100 lines
-of clear PEG grammar with an output suitable to use in compilers.
+of clear PEG grammar with an output suitable to be used analyzed by a compiler.
 
 The new extensions should not break any existing `re` syntax.
 
@@ -85,7 +85,7 @@ The following table demonstrates the four ways to fold a list of nodes:
 | Fold tables to the left | `{1}, {2}, {3}` | `{{{1}, 2}, 3}` | `patt ~> foldleft` |
 | Fold tables to the right | `{1}, {2}, {3}` | `{1, {2, {3}}}}` | `patt -> foldright` |
 | Fold tables to the left in reverse order | `{1}, {2}, {3}` | `{{{3}, 2}, 1}` | `patt -> rfoldleft` |
-| Fold tables to the right in reverse order | `{1}, {2}, {3}` | `{{{3}, 2}, 1}` | `patt ~> rfoldright` |
+| Fold tables to the right in reverse order | `{1}, {2}, {3}` | `{3, {2, {1}}` | `patt ~> rfoldright` |
 
 Where the pattern `patt` captures a list of tables with a least one capture.
 Note that depending on the fold operation you must use its correct arrow (`->` or `~>`).
@@ -107,14 +107,14 @@ the following tables show auxiliary syntax to help on that:
 
 ## Capture auxiliary functions
 
-Sometimes is we need to substitute a list of captures to a lua value,
+Sometimes is we need to substitute a list of captures by a lua value,
 the following tables show auxiliary functions to help on that:
 
 | Purpose | Syntax | Captured Lua Value |
 |-|-|-|
 | Substitute captures by `nil` | `p -> tonil ` | `nil` |
 | Substitute captures by `false` | `p -> tofalse ` | `false` |
-| Substitute captures by `true` | `p -> tofalse ` | `true` |
+| Substitute captures by `true` | `p -> totrue ` | `true` |
 | Substitute captures by `{}` | `p -> toemptytable ` | `{}` |
 | Substitute a capture by a number | `p -> tonumber ` | Corresponding number of the captured |
 | Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of the captured code |
@@ -123,9 +123,9 @@ the following tables show auxiliary functions to help on that:
 
 By default when capturing a node with `<==` syntax, LPegRex will set the following 3 fields:
 
-* `pos` Initial position of the node capture
-* `endpos` Final position of the node capture
-* `tag` Tag name of the node
+* `tag` Name of the node (its type)
+* `pos` Initial position of the node match
+* `endpos` Final position of the node match
 
 The user can customize to change these field names or to disable them by
 setting it's corresponding name in the `defs.__options` table when compiling the grammar,
@@ -142,10 +142,24 @@ local mypatt = rex.compile(mygrammar, {__options = {
 The fields `pos` and `endpos` are useful to generate error messages with precise location
 later when analyzing the AST. The `tag` field is used to distinguish the node type.
 
-## User defined rules
+## Matching keywords and tokens
 
-When using keywords ot token syntax the user must always define the
-`SKIP` and `NAME_SUFFIX` rules. In most cases something like:
+When using the back tick syntax (e.g. `` `something` ``),
+LPegRex will register its contents as a **keyword** in case it begins with a letter,
+or as **token** in case it contains only punctuation characters.
+
+Both keywords and tokens always match the `SKIP` rule immediately to
+skip spaces, thus the rule `SKIP` must always be defined when using the back tick syntax.
+
+Tokens matches are always unique in case of common characters, that is,
+in case both `.` and `..` tokens are defined, the rule `` `.` `` will match
+`.` but not `..`.
+
+In case of a **keyword** is found,
+the rule `NAME_SUFFIX` also need to be defined, it's used
+to differentiate keywords from identifier names.
+
+In most cases the user will need define something like:
 
 ```
 NAME_SUFFIX   <- [_%w]+
@@ -154,7 +168,9 @@ SKIP          <- %s+
 
 You may want to edit the `SKIP` rule to consider comments if you grammar supports them.
 
-Often we need to create a rule that capture identifier names while ignoring grammar keywords, let call it `NAME`.
+## Capturing identifier names
+
+Often we need to create a rule that capture identifier names while ignoring grammar keywords, let call this rule `NAME`.
 To assist doing this the `KEYWORD` rule is automatically generated based on all defined keywords in
 the grammar, the user can then use it to define the `NAME` rule, in most cases something like:
 
