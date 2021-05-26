@@ -17,14 +17,15 @@ with some minor additions to make easy parsing a whole
 programming language grammar to an abstract syntax tree
 using a single, simple, compact and clear PEG grammar.
 
-For instance is in the goal of the project parsing the complete
-Lua 5.4 syntax into an abstract syntax tree under 100 lines
-of clear PEG grammar with an output suitable to be used analyzed by a compiler.
+For instance is in the goal of the project to parse Lua 5.4 source
+files with complete syntax into an abstract syntax tree under 100 lines
+of clear PEG grammar rules while generating an output suitable to be used analyzed by a compiler.
+**This goal was accomplished and it's in the tests folder.**
 
 The new extensions should not break any existing `re` syntax.
 
-If the projects turns out to be successful it will be later
-incorporated in the [Nelua](https://github.com/edubart/nelua-lang)
+This project will be later incorporated
+in the [Nelua](https://github.com/edubart/nelua-lang)
 programming language compiler.
 
 ## Additional Features
@@ -127,7 +128,7 @@ By default when capturing a node with `<==` syntax, LPegRex will set the followi
 * `pos` Initial position of the node match
 * `endpos` Final position of the node match
 
-The user can customize to change these field names or to disable them by
+The user can customize and change these field names or disable them by
 setting it's corresponding name in the `defs.__options` table when compiling the grammar,
 for example:
 
