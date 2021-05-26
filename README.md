@@ -43,6 +43,7 @@ programming language compiler.
     * `tonil` Substitute captures by `nil`.
     * `totrue` Substitute captures by `true`.
     * `tofalse` Substitute captures by `false`.
+    * `toemptytable` Substitute captures by `{}`.
     * `tonumber` Substitute a string capture by its corresponding number.
     * `tochar` Substitute a numeric code capture by its corresponding UTF-8 character.
     * `foldleft` Fold tables to the left (use only with `~>`).
@@ -64,9 +65,12 @@ Here is a quick reference of the new syntax additions:
 | Capture table rule | `name <-\| patt` | `name <- {\| patt \|}` |
 | Match keyword | `` `keyword` `` | `'keyword' !NAME_SUFFIX SKIP` |
 | Match token | `` `.` `..` `` | `!('..' SKIP) '.' SKIP '..' SKIP` |
-| Match control code | `%cn` | `%nl` |
+| Match control character | `%cn` | `%nl` |
 | Arbitrary capture | `$'string'` | `''->'string'` |
 | Expected match | `@'string' @rule` | `'string'^Expected_string rule^Expected_rule` |
+
+As you can notice the added syntax is mostly syntax sugar
+for common patterns used when defining programming language grammars.
 
 ## Folding auxiliary functions
 
@@ -110,6 +114,7 @@ the following tables show auxiliary functions to help on that:
 | Substitute captures by `nil` | `p -> tonil ` | `nil` |
 | Substitute captures by `false` | `p -> tofalse ` | `false` |
 | Substitute captures by `true` | `p -> tofalse ` | `true` |
+| Substitute captures by `{}` | `p -> toemptytable ` | `{}` |
 | Substitute a capture by a number | `p -> tonumber ` | Corresponding number of a captured |
 | Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of a captured code |
 
@@ -125,9 +130,9 @@ SKIP          <- %s+
 
 You may want to edit the `SKIP` rule to consider comments if you grammar supports them.
 
-Often we need to generate a rule to capture names that but ignore grammar keywords, let call it `NAME`.
+Often we need to create a rule that capture identifier names while ignoring grammar keywords, let call it `NAME`.
 To assist doing this the `KEYWORD` rule is automatically generated based on all defined keywords in
-the grammar, the user can use it to define the `NAME` rule, in most cases something like:
+the grammar, the user can then use it to define the `NAME` rule, in most cases something like:
 
 ```
 NAME          <-- !KEYWORD {NAME_PREFIX NAME_SUFFIX?} SKIP

@@ -90,6 +90,7 @@ local Predef = {
   tonil = function() return nil end,
   totrue = function() return true end,
   tofalse = function() return false end,
+  toemptytable = function() return {} end,
   tochar = function(s, base) return utf8char(tonumber(s, base)) end,
   tonumber = tonumber,
 }
