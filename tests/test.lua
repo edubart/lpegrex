@@ -560,10 +560,14 @@ end)
 
 it("node capture", function()
   local c = compile[[
-    chunk  <-- Number
-    Number <== NUMBER
-    NUMBER <-- {%d+} SKIP
-    SKIP   <-- %s*
+    chunk <-- Number
+    Number <== {%d+} %s*
+  ]]
+  eq({tag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
+
+  c = compile[[
+    chunk <-- num
+    num:Number <== {%d+} %s*
   ]]
   eq({tag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
 end)

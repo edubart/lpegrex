@@ -310,7 +310,7 @@ local function make_lpegrex_pattern()
             + "{" * expect(l.V"Exp", "ExpPattOrClose")
               * expect(S * "}", "MisClose5") / l.C
             + l.P"." * l.Cc(Any)
-            + (Name * -Arrow + "<" * expect(Name, "ExpName3")
+            + (Name * -(Arrow + (":" * Name * Arrow)) + "<" * expect(Name, "ExpName3")
                * expect(">", "MisClose6")) * l.Cb("G") / NT;
     Label = Num + Name;
     RuleDefinition = Name * RuleArrow * expect(l.V"Exp", "ExpPatt8");
@@ -320,7 +320,10 @@ local function make_lpegrex_pattern()
     NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
         return n, l.Ct(l.Cg(l.Cc(n), 'tag') * l.Cg(l.Cp(), 'pos') * p * l.Cg(l.Cp(), 'endpos'))
       end;
-    Definition = l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
+    TaggedNodeDefinition = Name * l.P":" * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, tag, p)
+        return n, l.Ct(l.Cg(l.Cc(tag), 'tag') * l.Cg(l.Cp(), 'pos') * p * l.Cg(l.Cp(), 'endpos'))
+      end;
+    Definition = l.V"TaggedNodeDefinition" + l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
     Grammar = l.Cg(l.Cc(true), "G")
               * l.Cf((l.V"Definition") / firstdef * (S * (l.Cg(l.V"Definition")))^0,
                   adddef) / l.P;
