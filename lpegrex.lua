@@ -518,6 +518,27 @@ function lpegrex.gsub(subject, pattern, replacement)
   return cp:match(subject)
 end
 
+-- Extract line number, column, content, start position and end position from a multi line text.
+function lpegrex.calcline(s, i)
+  if i == 1 then
+    local lineend = s:find("\n", 1, true)
+    lineend = lineend and lineend-1 or #s
+    local line = s:sub(1, lineend)
+    return 1, 1, line, 1, lineend
+  end
+  local subs = s:sub(1,i)
+  local rest, lineno = subs:gsub("[^\n]*\n", "")
+  lineno = 1 + lineno
+  local colno = #rest
+  colno = colno ~= 0 and colno or 1
+  local linestart = subs:find("\n[^\n]*$")
+  linestart = linestart and linestart+1 or 1
+  local lineend = s:find("\n", i+1, true)
+  lineend = lineend and lineend-1 or #s
+  local line = s:sub(linestart, lineend)
+  return lineno, colno, line, linestart, lineend
+end
+
 return lpegrex
 
 --[[

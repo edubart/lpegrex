@@ -1,4 +1,6 @@
 local rex = require 'lpegrex'
+
+-- Compile Lua grammar
 local c = rex.compile([[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
@@ -118,9 +120,28 @@ SHRT_COMMENT  <-- (!LINEBREAK .)* LINEBREAK?
 SHEBANG       <-- '#!' (!LINEBREAK .)* LINEBREAK?
 LINEBREAK     <-- %nl %cr / %cr %nl / %nl / %cr
 SKIP          <-- (%s+ / COMMENT)*
+EXTRA_TOKENS  <-- `[[` `[=` `--` -- unused rule, here just to force defining these tokens
 ]])
 
-local function prettyprint(node, indent)
+-- Load source file
+local filename = arg[1]
+if not filename then print 'please pass a lua filename as argument' os.exit(false) end
+local file = io.open(filename)
+if not file then print('failed to open file: '..filename) os.exit(false) end
+local source = file:read('a')
+
+-- Parse source
+local ast, errlabel, errpos = c:match(source)
+if not ast then
+  local lineno, colno, line, linepos = rex.calcline(source, errpos)
+  print(string.format('%s:%d:%d: %s', filename, lineno, colno, errlabel))
+  print(line)
+  print(string.rep(' ', errpos - linepos)..'^')
+  os.exit(false)
+end
+
+-- Print its AST
+local function printast(node, indent)
   indent = indent or ''
   for i=1,#node do
     local child = node[i]
@@ -131,30 +152,17 @@ local function prettyprint(node, indent)
       else
         print(indent..'-')
       end
-      prettyprint(child, indent..'  ')
+      printast(child, indent..'  ')
     elseif ty == 'string' then
-      print(indent..'"'..tostring(child)..'"')
+      local escaped = child:gsub([[(['"])]], '\\%1')
+                           :gsub('\n', '\\n'):gsub('\t', '\\t')
+                           :gsub('[^%w%p]', function(s)
+                              return string.format('\\x%02x', string.byte(s))
+                            end)
+      print(indent..'"'..escaped..'"')
     elseif ty == 'number' or ty == 'boolean' or ty == 'nil' then
       print(indent..tostring(child))
     end
   end
 end
-
-local source = [[
--- defines a factorial function
-function fact (n)
-  if n == 0 then
-    return 1
-  else
-    return n * fact(n-1)
-  end
-end
-
-print("enter a number:")
-a = io.read("*number")        -- read a number
-print(fact(a))
-]]
-
-local ast, err = c:match(source)
-assert(ast, err)
-prettyprint(ast)
+printast(ast)
