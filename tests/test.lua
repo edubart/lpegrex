@@ -486,12 +486,39 @@ it("arbitrary captures", function()
 end)
 
 it("token and keywords literals", function()
-  eq(match('a', [[A <- `a` SKIP <- %s*]]), 2)
+  eq(match('a', [[A <- `a` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 2)
   eq(match('{', [[A <- `{` SKIP <- %s*]]), 2)
   eq(match('`', [[A <- ``` SKIP <- %s*]]), 2)
-  eq(match('a : c', [[G <- `a` `:` `c` SKIP <- %s*]]), 6)
+  eq(match('a : c', [[G <- `a` `:` `c` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 6)
   eq(match('local function()',
-           [[A <- `local` `function` `(` `)` SKIP <- %s*]]), 17)
+           [[A <- `local` `function` `(` `)` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 17)
+end)
+
+it("matching unique tokens", function()
+  local c = compile([[
+    chunk <-| (Dot1 / Dot2 / Dot3)*
+    Dot1 <== `.` NAME
+    Dot2 <== `..` NAME
+    Dot3 <== `...` NAME
+    NAME <- {%w+} SKIP
+    SKIP <- %s*
+  ]], nil, {pos=false, endpos=false})
+  eq({{tag="Dot1", "1"}, {tag="Dot2", "2"}, {tag="Dot3", "3"}}, c:match('.1 ..2 ...3'))
+  eq({{tag="Dot3", "3"}, {tag="Dot2", "2"}, {tag="Dot1", "1"}}, c:match('...3 ..2 .1'))
+end)
+
+it("matching unique keywords", function()
+  local c = compile([[
+    chunk <-| (NAME / Else / ElseIf)*
+    Else <== `else`
+    ElseIf <== `elseif`
+    NAME <-- !KEYWORD {NAME_PREFIX NAME_SUFFIX?} SKIP
+    NAME_PREFIX <-- [_%a]
+    NAME_SUFFIX <- [_%w]+
+    SKIP <- %s*
+  ]], nil, {pos=false, endpos=false})
+  eq({{tag="Else"}, {tag="ElseIf"}, 'elsedummy'}, c:match('else elseif elsedummy'))
+  eq({'elsedummy', {tag="ElseIf"}, {tag="Else"}}, c:match('elsedummy elseif else'))
 end)
 
 it("auxiliary functions", function()
@@ -532,6 +559,7 @@ it("expected matches", function()
 
   c = compile[[
     rules <- @`test` @`aaaa`
+    NAME_SUFFIX <- [_%w]+
     SKIP <- %s*
   ]]
   eq(c:match'test aaaa', 10)

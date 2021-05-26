@@ -1,9 +1,13 @@
 # LPegRex
 
-LPegRex is an re-implementation of [LPeg](http://www.inf.puc-rio.br/~roberto/lpeg/)/[LPegLabel](https://github.com/sqmedeiros/lpeglabel)
+LPegRex is an re-implementation of
+[LPeg](http://www.inf.puc-rio.br/~roberto/lpeg/)/
+[LPegLabel](https://github.com/sqmedeiros/lpeglabel)
 `re` module with some extensions to make
 easy to parse language grammars into an AST (abstract syntax tree)
 while maintaining readability.
+
+LPegRex stands for *LPeg Regular Expression eXtended.
 
 **NOTE:** This is currently under research, development and incomplete.
 
@@ -27,30 +31,26 @@ programming language compiler.
 
 ## Additional Features
 
-* New syntax for capturing arbitrary values on empty strings (e.g. `$true`)
+* New predefined patterns for control characters (`%ca` `%cb` `%ct` `%cn` `%cv` `%cf` `%cr`).
+* New syntax for capturing arbitrary values while matching empty strings (e.g. `$true`).
 * New syntax for throwing labels errors on failure of expected matches (e.g. `@rule`).
-* New syntax for matching tokens with automatic skipping (e.g. `` `,` ``).
-* New syntax for matching keywords with automatic skipping (e.g. `` `function` ``).
 * New syntax for rules that capture AST Nodes (e.g. `NodeName <== patt`).
 * New syntax for rules that capture tables (e.g. `MyList <-| patt`).
-* Alternative syntax from common rules (e.g. `rule <-- patt`).
-* Pre defined auxiliary functions:
-    * `tonumber` Substitute a numeric capture by a number.
-    * `tochar` Substitute a numeric capture by an UTF-8 character.
+* New syntax for matching unique tokens with automatic skipping (e.g. `` `,` ``).
+* New syntax for matching unique keywords with automatic skipping (e.g. `` `for` ``).
+* Auto generate `KEYWORD` rule based on used keywords in the grammar.
+* Use supplied `NAME_SUFFIX` rule for generating each keyword rule.
+* Use supplied `SKIP` rule for generating each keyword or token rule.
+* Pre define some useful auxiliary functions:
+    * `tonil` Substitute captures by `nil`.
     * `totrue` Substitute captures by `true`.
     * `tofalse` Substitute captures by `false`.
-    * `tonil` Substitute captures by `nil`.
+    * `tonumber` Substitute a string capture by its corresponding number.
+    * `tochar` Substitute a numeric code capture by its corresponding UTF-8 character.
     * `foldleft` Fold tables to the left (use only with `~>`).
-    * `foldright` Fold tables to the left (use only with `->`).
+    * `foldright` Fold tables to the right (use only with `->`).
     * `rfoldleft` Fold tables to the left in reverse order (use only with `->`).
     * `rfoldright` Fold tables to the right in reverse order (use only with `~>`)
-
-## Planned features
-
-* Builtin utilities for folding AST nodes.
-* Builtin but overridable `SKIP`, `NAME_PREFIX`, `NAME_SUFFIX` rules.
-* Builtin automatic generated `NAME` and `KEYWORD` rules.
-* Generated token and keyword rules automatically.
 
 ## Tests
 

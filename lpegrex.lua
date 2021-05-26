@@ -1,23 +1,85 @@
 --[[
-LPeg Regular Expressions Extended
+LPegRex - LPeg Regular Expression eXtended
 Eduardo Bart - edub4rt@gmail.com
 https://github.com/edubart/lpegrex
 See end of file for LICENSE.
 ]]
 
+-- LPegRex depends on LPegLabel.
 local lpeg = require 'lpeglabel'
 
--- LPegRex module table.
+-- The LPegRex module table.
 local lpegrex = {}
 
 -- Cache tables for `match`, `find` and `gsub`.
 local mcache, fcache, gcache
 
+-- Global LPegRex options.
+local defrexoptions = {
+  tag = 'tag',
+  pos = 'pos',
+  endpos = 'endpos',
+  SKIP = 'SKIP',
+  NAME_SUFFIX = 'NAME_SUFFIX',
+}
+local rexoptions
+
+-- Localize some global functions.
 local utf8char = utf8 and utf8.char or string.char
+local select = select
+local insert = table.insert
+
+-- LPeGRex syntax errors.
+local ErrorDescs = {
+  NoPatt = "no pattern found",
+  ExtraChars = "unexpected characters after the pattern",
+
+  ExpPatt1 = "expected a pattern after '/'",
+  ExpPatt2 = "expected a pattern after '&'",
+  ExpPatt3 = "expected a pattern after '!'",
+  ExpPatt4 = "expected a pattern after '('",
+  ExpPatt5 = "expected a pattern after ':'",
+  ExpPatt6 = "expected a pattern after '{~'",
+  ExpPatt7 = "expected a pattern after '{|'",
+  ExpPatt8 = "expected a pattern after '<-'",
+
+  ExpPattOrClose = "expected a pattern or closing '}' after '{'",
+
+  ExpNumName = "expected a number, '+', '-' or a name (no space) after '^'",
+  ExpCap = "expected a string, number, '{}' or name after '->'",
+
+  ExpName1 = "expected the name of a rule after '=>'",
+  ExpName2 = "expected the name of a rule after '=' (no space)",
+  ExpName3 = "expected the name of a rule after '<' (no space)",
+  ExpName4 = "expected a name, number or string rule after '$' (no space)",
+  ExpName5 = "expected a name or string rule after '@' (no space)",
+
+  ExpLab1 = "expected a label after '{'",
+
+  ExpNameOrLab = "expected a name or label after '%' (no space)",
+
+  ExpItem = "expected at least one item after '[' or '^'",
+
+  MisClose1 = "missing closing ')'",
+  MisClose2 = "missing closing ':}'",
+  MisClose3 = "missing closing '~}'",
+  MisClose4 = "missing closing '|}'",
+  MisClose5 = "missing closing '}'",  -- for the captures
+  MisClose6 = "missing closing '>'",
+  MisClose7 = "missing closing '}'",  -- for the labels
+  MisClose8 = "missing closing ']'",
+
+  MisTerm1 = "missing terminating single quote",
+  MisTerm2 = "missing terminating double quote",
+  MisTerm3 = "missing terminating backtick quote",
+}
+
+-- Pattern matching any character.
+local Any = lpeg.P(1)
 
 -- Predefined patterns.
-local Any = lpeg.P(1)
 local Predef = {
+  nl = lpeg.P"\n", -- new line
   ca = lpeg.P"\a", -- audible bell
   cb = lpeg.P"\b", -- back feed
   ct = lpeg.P"\t", -- horizontal tab
@@ -25,16 +87,12 @@ local Predef = {
   cv = lpeg.P"\v", -- vertical tab
   cf = lpeg.P"\f", -- form feed
   cr = lpeg.P"\r", -- carriage return
-
   tonil = function() return nil end,
-  tofalse = function() return false end,
   totrue = function() return true end,
+  tofalse = function() return false end,
   tochar = function(s, base) return utf8char(tonumber(s, base)) end,
   tonumber = tonumber,
 }
-Predef.nl = Predef.cn
-
-local insert = table.insert
 
 -- Fold tables to the left (use only with `~>`).
 -- Example: ({1}, {2}, {3}) -> {{{1}, 2}, 3}
@@ -84,54 +142,10 @@ function Predef.rfoldright(lhs, rhs)
   return lhs
 end
 
--- Error descripts.
-local ErrorDescs = {
-  NoPatt = "no pattern found",
-  ExtraChars = "unexpected characters after the pattern",
-
-  ExpPatt1 = "expected a pattern after '/'",
-  ExpPatt2 = "expected a pattern after '&'",
-  ExpPatt3 = "expected a pattern after '!'",
-  ExpPatt4 = "expected a pattern after '('",
-  ExpPatt5 = "expected a pattern after ':'",
-  ExpPatt6 = "expected a pattern after '{~'",
-  ExpPatt7 = "expected a pattern after '{|'",
-  ExpPatt8 = "expected a pattern after '<-'",
-
-  ExpPattOrClose = "expected a pattern or closing '}' after '{'",
-
-  ExpNumName = "expected a number, '+', '-' or a name (no space) after '^'",
-  ExpCap = "expected a string, number, '{}' or name after '->'",
-
-  ExpName1 = "expected the name of a rule after '=>'",
-  ExpName2 = "expected the name of a rule after '=' (no space)",
-  ExpName3 = "expected the name of a rule after '<' (no space)",
-  ExpName4 = "expected a name, number or string rule after '$' (no space)",
-  ExpName5 = "expected a name or string rule after '@' (no space)",
-
-  ExpLab1 = "expected a label after '{'",
-
-  ExpNameOrLab = "expected a name or label after '%' (no space)",
-
-  ExpItem = "expected at least one item after '[' or '^'",
-
-  MisClose1 = "missing closing ')'",
-  MisClose2 = "missing closing ':}'",
-  MisClose3 = "missing closing '~}'",
-  MisClose4 = "missing closing '|}'",
-  MisClose5 = "missing closing '}'",  -- for the captures
-  MisClose6 = "missing closing '>'",
-  MisClose7 = "missing closing '}'",  -- for the labels
-  MisClose8 = "missing closing ']'",
-
-  MisTerm1 = "missing terminating single quote",
-  MisTerm2 = "missing terminating double quote",
-  MisTerm3 = "missing terminating backtick quote",
-}
-
 -- Updates the pre-defined character classes to the current locale.
 function lpegrex.updatelocale()
   lpeg.locale(Predef)
+  -- fill default pattern classes
   Predef.a = Predef.alpha
   Predef.c = Predef.cntrl
   Predef.d = Predef.digit
@@ -152,16 +166,20 @@ function lpegrex.updatelocale()
   Predef.U = Any - Predef.u
   Predef.W = Any - Predef.w
   Predef.X = Any - Predef.x
+  -- clear the cache because the locale changed
   mcache, fcache, gcache = {}, {}, {}
+  -- don't hold references in cached patterns
   local weakmt = {__mode = "v"}
   setmetatable(mcache, weakmt)
   setmetatable(fcache, weakmt)
   setmetatable(gcache, weakmt)
 end
 
+-- fill classes using the default locale
 lpegrex.updatelocale()
 
-local function make_lpegrex_pattern()
+-- Create LPegRex syntax pattern.
+local function mkrex()
   local l = lpeg
   local lmt = getmetatable(Any)
 
@@ -192,12 +210,32 @@ local function make_lpegrex_pattern()
     return nil
   end
 
-  local function getdef(id, defs)
-    local c = defs and defs[id] or Predef[id]
-    if not c then
+  local function getuserdef(id, defs)
+    local v = defs and defs[id] or Predef[id]
+    if not v then
       error("undefined name: " .. id)
     end
-    return c
+    return v
+  end
+
+  local function getopt(id)
+    if rexoptions and rexoptions[id] ~= nil then
+      return rexoptions[id]
+    end
+    return defrexoptions[id]
+  end
+
+  -- current grammar being generated
+  local G, Gkeywords, Gtokens
+
+  local function begindef()
+    G, Gkeywords, Gtokens = {}, {}, {}
+    return G
+  end
+
+  local function enddef(t)
+    G, Gkeywords, Gtokens = nil, nil, nil
+    return l.P(t)
   end
 
   local function adddef(t, k, exp)
@@ -209,8 +247,9 @@ local function make_lpegrex_pattern()
     return t
   end
 
-  local function firstdef(n, r)
-    return adddef({n}, n, r)
+  local function firstdef(t, n, r)
+    t[1] = n
+    return adddef(t, n, r)
   end
 
   local function NT(n, b)
@@ -233,8 +272,9 @@ local function make_lpegrex_pattern()
   local Token = "`" * l.C(Predef.punct * (Predef.punct - '`')^0) * expect("`", "MisTerm3")
   local Keyword = "`" * l.C(Predef.alpha * (Any - "`")^0) * expect('`', "MisTerm3")
   local Range = l.Cs(Any * (l.P"-"/"") * (Any - "]")) / l.R
-  local Def = Name * l.Carg(1) -- a defined name only have meaning in a given environment
-  local Defined = "%" * Def / getdef
+  local Defs = l.Carg(1)
+  local NamedDef = Name * Defs -- a defined name only have meaning in a given environment
+  local Defined = "%" * NamedDef / getuserdef
   local Item = (Defined + Range + l.C(Any)) / l.P
   local Class =
       "["
@@ -243,10 +283,52 @@ local function make_lpegrex_pattern()
       / function(c, p) return c == "^" and Any - p or p end
     * expect("]", "MisClose8")
 
-  -- match a name and return a group of its corresponding definition
-  -- and 'f' (to be folded in 'Suffix')
   local function defwithfunc(f)
-    return l.Cg(Def / getdef * l.Cc(f))
+    return l.Cg(NamedDef / getuserdef * l.Cc(f))
+  end
+
+  local function updatetokens(s)
+    for _,toks in ipairs(Gtokens) do
+      if toks ~= s then
+        if toks:find(s, 1, true) == 1 then
+          G[s] = -G[toks] * G[s]
+        elseif s:find(toks, 1, true) == 1 then
+          G[toks] = -G[s] * G[toks]
+        end
+      end
+    end
+  end
+
+  local function maketoken(s)
+    local p = Gtokens[s]
+    if not p then
+      p = l.V(s)
+      Gtokens[s] = p
+      Gtokens[#Gtokens+1] = s
+      G[s] = l.P(s) * l.V(getopt("SKIP"))
+      updatetokens(s)
+    end
+    return p
+  end
+
+  local function updatekeywords(kp)
+    local p = G.KEYWORD
+    if not p then
+      p = kp
+    else
+      p = p + kp
+    end
+    G.KEYWORD = p
+  end
+
+  local function makekeyword(s)
+    local p = Gkeywords[s]
+    if not p then
+      p = l.P(s) * -l.V(getopt("NAME_SUFFIX")) * l.V(getopt("SKIP"))
+      Gkeywords[s] = p
+      updatekeywords(p)
+    end
+    return p
   end
 
   local exp = l.P{ "Exp",
@@ -277,8 +359,8 @@ local function make_lpegrex_pattern()
             )^0, function(a,b,f) if f == "lab" then return a + l.T(b) end return f(a,b) end );
     Primary = "(" * expect(l.V"Exp", "ExpPatt4") * expect(S * ")", "MisClose1")
             + String / l.P
-            + Token / function(s) return l.P(s) * l.V("SKIP") end
-            + Keyword / function(s) return l.P(s) * l.V("SKIP") end
+            + Token * Defs / maketoken
+            + Keyword * Defs / makekeyword
             + Class
             + Defined
             + "%" * expect(l.P"{", "ExpNameOrLab")
@@ -296,12 +378,18 @@ local function make_lpegrex_pattern()
                             + l.P"{}" / function() return l.Cc({}) end
                             + SignedNum / function(s) return l.Cc(tonumber(s)) end
                             + String / function(s) return l.Cc(s) end
-                            + (Def / getdef) / l.Cc,
+                            + (NamedDef / getuserdef) / l.Cc,
                             "ExpName4")
             + l.P"@" * expect(String / function(s) return l.P(s) + l.T('Expected_'..s) end
-                            + Token / function(s) return (l.P(s) * l.V("SKIP")) + l.T('Expected_'..s) end
-                            + Keyword / function(s) return (l.P(s) * l.V("SKIP")) + l.T('Expected_'..s) end
-                            + Name * l.Cb("G") / function(n, b) return NT(n, b) + l.T('ExpectedRule_'..n) end,
+                            + Token * Defs / function(s, defs)
+                              return maketoken(s, defs) + l.T('Expected_'..s)
+                            end
+                            + Keyword * Defs / function(s, defs)
+                              return makekeyword(s, defs) + l.T('Expected_'..s)
+                            end
+                            + Name * l.Cb("G") / function(n, b)
+                              return NT(n, b) + l.T('ExpectedRule_'..n)
+                            end,
                             "ExpName5")
             + "{~" * expect(l.V"Exp", "ExpPatt6")
               * expect(S * "~}", "MisClose3") / l.Cs
@@ -310,7 +398,7 @@ local function make_lpegrex_pattern()
             + "{" * expect(l.V"Exp", "ExpPattOrClose")
               * expect(S * "}", "MisClose5") / l.C
             + l.P"." * l.Cc(Any)
-            + (Name * -(Arrow + (":" * Name * Arrow)) + "<" * expect(Name, "ExpName3")
+            + (Name * -(Arrow + (S * ":" * S * Name * Arrow)) + "<" * expect(Name, "ExpName3")
                * expect(">", "MisClose6")) * l.Cb("G") / NT;
     Label = Num + Name;
     RuleDefinition = Name * RuleArrow * expect(l.V"Exp", "ExpPatt8");
@@ -318,15 +406,24 @@ local function make_lpegrex_pattern()
         return n, l.Ct(p)
       end;
     NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
-        return n, l.Ct(l.Cg(l.Cc(n), 'tag') * l.Cg(l.Cp(), 'pos') * p * l.Cg(l.Cp(), 'endpos'))
+        local tagfield, posfield, endposfield = getopt('tag'), getopt('pos'), getopt('endpos')
+        if tagfield then p = l.Cg(l.Cc(n), tagfield) * p end
+        if posfield then p = l.Cg(l.Cp(), posfield) * p end
+        if endposfield then p = p * l.Cg(l.Cp(), endposfield) end
+        return n, l.Ct(p)
       end;
-    TaggedNodeDefinition = Name * l.P":" * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, tag, p)
-        return n, l.Ct(l.Cg(l.Cc(tag), 'tag') * l.Cg(l.Cp(), 'pos') * p * l.Cg(l.Cp(), 'endpos'))
+    TaggedNodeDefinition = Name * S * l.P":" * S * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, tag, p)
+        local tagfield, posfield, endposfield = getopt('tag'), getopt('pos'), getopt('endpos')
+        if tagfield then p = l.Cg(l.Cc(tag), tagfield) * p end
+        if posfield then p = l.Cg(l.Cp(), posfield) * p end
+        if endposfield then p = p * l.Cg(l.Cp(), endposfield) end
+        return n, l.Ct(p)
       end;
     Definition = l.V"TaggedNodeDefinition" + l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
     Grammar = l.Cg(l.Cc(true), "G")
-              * l.Cf((l.V"Definition") / firstdef * (S * (l.Cg(l.V"Definition")))^0,
-                  adddef) / l.P;
+              * l.Cf(l.P"" / begindef
+                  * (l.V"Definition") / firstdef
+                  * (S * (l.Cg(l.V"Definition")))^0, adddef) / enddef;
   }
 
   return S * l.Cg(l.Cc(false), "G") * expect(exp, "NoPatt") / l.P
@@ -334,19 +431,25 @@ local function make_lpegrex_pattern()
 end
 
 
-local lpegrex_pattern = make_lpegrex_pattern()
+local rexpatt = mkrex()
 
 --[[
 Compiles the given `pattern` string and returns an equivalent LPeg pattern.
 
 The given string may define either an expression or a grammar.
 The optional `defs` table provides extra Lua values to be used by the pattern.
+The optional `options table can provide the following options for node captures:
+* `tag` name of the node tag field, if `false` it's omitted (default "tag").
+* `pos` name of the node initial position field, if `false` it's omitted (default "pos").
+* `endpos` name of the node final position field, if `false` it's omitted (default "endpos").
 ]]
-function lpegrex.compile(pattern, defs)
+function lpegrex.compile(pattern, defs, options)
   if lpeg.type(pattern) == 'pattern' then -- already compiled
     return pattern
   end
-  local cp, label, pos = lpegrex_pattern:match(pattern, 1, defs)
+  rexoptions = options
+  local cp, label, pos = rexpatt:match(pattern, 1, defs)
+  rexoptions = nil
   if not cp then
     -- TODO: show syntax errors
     error("incorrect pattern " .. label, 3)
