@@ -92,7 +92,8 @@ LONG_CONTENT  <-- (!LONG_CLOSE .)*
 LONG_OPEN     <-- '[' {:eq: '='*:} '[' LINEBREAK?
 LONG_CLOSE    <-- ']' =eq ']'
 ESCAPE_SEQ    <-- '\' -> '' @ESCAPE
-ESCAPE        <-- ('a' $7 / 'b' $8 / 't' $9 / 'n' $10 / 'v' $11 / 'f' $12 / 'r' $13) -> tochar /
+ESCAPE        <-- [\'"] /
+                  ('a' $7 / 'b' $8 / 't' $9 / 'n' $10 / 'v' $11 / 'f' $12 / 'r' $13) -> tochar /
                   (LINEBREAK $10) -> tochar /
                   ('z' %s*) -> '' /
                   (%d %d^-1 !%d / [012] %d^2) -> tochar /

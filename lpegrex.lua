@@ -26,7 +26,7 @@ local rexoptions
 
 -- Localize some global functions.
 local utf8char = utf8 and utf8.char or string.char
-local select = select
+local select, tonumber = select, tonumber
 local insert = table.insert
 
 -- LPeGRex syntax errors.

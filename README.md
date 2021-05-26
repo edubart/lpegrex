@@ -9,8 +9,6 @@ while maintaining readability.
 
 LPegRex stands for *LPeg Regular Expression eXtended.
 
-**NOTE:** This is currently under research, development and incomplete.
-
 ## Goals
 
 The goal of this library is to extended the LPeg
@@ -21,7 +19,7 @@ using a single, simple, compact and clear PEG grammar.
 
 For instance is in the goal of the project parsing the complete
 Lua 5.4 syntax into an abstract syntax tree under 100 lines
-of clear PEG grammar, suitable for use in compilers.
+of clear PEG grammar with an output suitable to use in compilers.
 
 The new extensions should not break any existing `re` syntax.
 
@@ -138,12 +136,69 @@ NAME_SUFFIX   <-- [_%w]+
 SKIP          <- %s+
 ```
 
+## Usage Example
+
+Here is a small example parsing JSON into an AST in 11 lines of PEG rules:
+
+```lua
+local rex = require 'lpegrex'
+
+local json_patt = rex.compile([[
+Json          <-- SKIP (Object / Array) (!.)^UnexpectedSyntax
+Object        <== `{` (Member (`,` @Member)*)? `}`
+Array         <== `[` (Value (`,` @Value)*)? `]`
+Member        <== String @`:` @Value
+Value         <-- String / Number / Object / Array / Boolean / Null
+String        <-- '"' {~ ('\' -> '' @ESCAPE / !'"' .)* ~} '"' SKIP
+Number        <-- {[+-]? (%d+ '.'? %d+? / '.' %d+) ([eE] [+-]? %d+)?} -> tonumber SKIP
+Boolean       <-- 'false' -> tofalse / 'true' -> totrue
+Null          <-- 'null' -> tonil
+ESCAPE        <-- [\/"] / ('b' $8 / 't' $9 / 'n' $10 / 'f' $12 / 'r' $13 / 'u' {%x^4} $16) -> tochar
+SKIP          <-- %s*
+]])
+
+local jsontext = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
+local json, errlabel, errpos = json_patt:match(jsontext)
+assert(json, errlabel)
+-- `json` should be a table with the AST
+```
+
+The above should parse into the following equivalent AST table:
+```lua
+{ tag = "Array", pos = 1, endpos = 73,
+  { tag = "Object", pos = 2, endpos = 72,
+    { tag = "Member", pos = 3, endpos = 24,
+    "string","some\ntext" },
+    { tag = "Member", pos = 26, endpos = 40,
+    "boolean", true },
+    { tag = "Member", pos = 42, endpos = 58,
+      "number", -150.0 },
+    { tag = "Member", pos = 60, endpos = 71,
+      "null", nil }
+  }
+}
+```
+
+## Dependencies
+
+To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
+to be properly installed.
+
 ## Tests
 
 Most LPeg/LPegLabel tests where migrated into `tests/test.lua`
 and new tests for the addition extensions were added.
 
 To run the tests just run `lua tests/test.lua`.
+
+## Examples
+
+* Lua 5.4 syntax is defined in
+[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
+it servers as a good example on how to parse a language grammars into an AST from a single PEG.
+
+* A JSON parser is defined in a single PEG in
+[tests/json.lua](https://github.com/edubart/lpegrex/blob/main/tests/json.lua).
 
 ## License
 
