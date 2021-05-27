@@ -1,6 +1,6 @@
-local rex = require 'lpegrex'
+local lpegrex = require 'lpegrex'
 
-local json_patt = rex.compile([[
+local patt = lpegrex.compile([[
 Json          <-- SKIP (Object / Array) (!.)^UnexpectedSyntax
 Object        <== `{` (Member (`,` @Member)*)? `}`
 Array         <== `[` (Value (`,` @Value)*)? `]`
@@ -14,10 +14,17 @@ ESCAPE        <-- [\/"] / ('b' $8 / 't' $9 / 'n' $10 / 'f' $12 / 'r' $13 / 'u' {
 SKIP          <-- %s*
 ]])
 
-local jsontext = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
-local json, errlabel, errpos = json_patt:match(jsontext)
-assert(json, errlabel)
--- `json` should be a table with the AST
+local source = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
+
+local ast, errlabel, errpos = patt:match(source)
+if not ast then
+  local lineno, colno, line = lpegrex.calcline(source, errpos)
+  local colhelp = string.rep(' ', colno-1)..'^'
+  error('syntax error: '..lineno..':'..colno..': '..errlabel..
+        '\n'..line..'\n'..colhelp)
+end
+-- `ast` should be a table with the JSON
+print('JSON parsed with success!')
 
 -- test
 local expected_json =
@@ -34,5 +41,4 @@ local expected_json =
   }
 }
 local expect = require 'tests.lester'.expect
-expect.equal(json, expected_json)
-print('JSON ok!')
+expect.equal(ast, expected_json)

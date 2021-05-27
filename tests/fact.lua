@@ -1,0 +1,9 @@
+-- Used as an input example to the Lua parser.
+local function fact(n)
+  if n == 0 then
+    return 1
+  else
+    return n * fact(n-1)
+  end
+end
+print(fact(10))

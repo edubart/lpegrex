@@ -1,7 +1,7 @@
-local rex = require 'lpegrex'
+local lpegrex = require 'lpegrex'
 
 -- Compile Lua grammar
-local c = rex.compile([[
+local LUA_PEG = [[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
 Block         <== ( Label / Return / Break / Goto / Do / While / Repeat / If / For / ForIn
@@ -73,11 +73,11 @@ expr_bor      <-- (expr_bxor op_bor*) ~> foldleft
 expr_bxor     <-- (expr_band op_bxor*) ~> foldleft
 expr_band     <-- (expr_bshift op_band*) ~> foldleft
 expr_bshift   <-- (expr_concat op_bshift*) ~> foldleft
-expr_concat   <-- (expr_arit op_concat?) ~> foldleft
+expr_concat   <-- (expr_arit op_concat*) ~> foldleft
 expr_arit     <-- (expr_fact op_arit*) ~> foldleft
 expr_fact     <-- (expr_unary op_fact*) ~> foldleft
 expr_unary    <-- (op_unary* expr_pow) -> foldright
-expr_pow      <-- (simplexpr op_pow?) ~> foldleft
+expr_pow      <-- (simplexpr op_pow*) ~> foldleft
 simplexpr     <-- Nil / Boolean / Number / String / Varargs / Function / Table / suffixedexpr
 suffixedexpr  <-- (primaryexpr (indexsuffix / callsuffix)*) ~> rfoldright
 primaryexpr   <-- Id / Paren
@@ -121,7 +121,7 @@ SHEBANG       <-- '#!' (!LINEBREAK .)* LINEBREAK?
 LINEBREAK     <-- %nl %cr / %cr %nl / %nl / %cr
 SKIP          <-- (%s+ / COMMENT)*
 EXTRA_TOKENS  <-- `[[` `[=` `--` -- unused rule, here just to force defining these tokens
-]])
+]]
 
 -- Load source file
 local filename = arg[1]
@@ -131,36 +131,38 @@ if not file then print('failed to open file: '..filename) os.exit(false) end
 local source = file:read('a')
 
 -- Parse source
-local ast, errlabel, errpos = c:match(source)
+local patt = lpegrex.compile(LUA_PEG)
+local ast, errlabel, errpos = patt:match(source)
 if not ast then
-  local lineno, colno, line, linepos = rex.calcline(source, errpos)
-  print(string.format('%s:%d:%d: %s', filename, lineno, colno, errlabel))
-  print(line)
-  print(string.rep(' ', errpos - linepos)..'^')
-  os.exit(false)
+  local lineno, colno, line = lpegrex.calcline(source, errpos)
+  local colhelp = string.rep(' ', colno-1)..'^'
+  error('syntax error: '..filename..':'..lineno..':'..colno..': '..errlabel..
+        '\n'..line..'\n'..colhelp)
 end
 
 -- Print its AST
 local function printast(node, indent)
   indent = indent or ''
+  if node.tag then
+    print(indent..node.tag)
+  else
+    print(indent..'-')
+  end
+  indent = indent..'| '
   for i=1,#node do
     local child = node[i]
     local ty = type(child)
     if ty == 'table' then
-      if child.tag then
-        print(indent..child.tag)
-      else
-        print(indent..'-')
-      end
-      printast(child, indent..'  ')
+      printast(child, indent)
     elseif ty == 'string' then
-      local escaped = child:gsub([[(['"])]], '\\%1')
-                           :gsub('\n', '\\n'):gsub('\t', '\\t')
-                           :gsub('[^%w%p]', function(s)
-                              return string.format('\\x%02x', string.byte(s))
-                            end)
+      local escaped = child
+        :gsub([[(['"])]], '\\%1')
+        :gsub('\n', '\\n'):gsub('\t', '\\t')
+        :gsub('[^ %w%p]', function(s)
+          return string.format('\\x%02x', string.byte(s))
+        end)
       print(indent..'"'..escaped..'"')
-    elseif ty == 'number' or ty == 'boolean' or ty == 'nil' then
+    else
       print(indent..tostring(child))
     end
   end

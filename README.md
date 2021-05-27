@@ -126,7 +126,7 @@ By default when capturing a node with `<==` syntax, LPegRex will set the followi
 
 * `tag` Name of the node (its type)
 * `pos` Initial position of the node match
-* `endpos` Final position of the node match
+* `endpos` Final position of the node match (usually includes following SKIP)
 
 The user can customize and change these field names or disable them by
 setting it's corresponding name in the `defs.__options` table when compiling the grammar,
@@ -182,14 +182,36 @@ NAME_SUFFIX   <-- [_%w]+
 SKIP          <- %s+
 ```
 
+## Handling syntax errors
+
+Any rule name, keyword, token or string pattern can be preceded by the token `@`,
+marking it as an expected match, in case the match is not fulfilled an error
+label will be thrown using the name `Expected_name`, where `name` is the
+token, keyword or rule name.
+
+Once an error label is found, the user can generate pretty syntax error
+messages using the function `lpegrex.calcline` to gather line information,
+for example:
+
+```lua
+local patt = lpegrex.compile(PEG)
+local ast, errlabel, errpos = patt:match(source)
+if not ast then
+  local lineno, colno, line = lpegrex.calcline(source, errpos)
+  local colhelp = string.rep(' ', colno-1)..'^'
+  error('syntax error: '..filename..':'..lineno..':'..colno..': '..errlabel..
+        '\n'..line..'\n'..colhelp)
+end
+```
+
 ## Usage Example
 
 Here is a small example parsing JSON into an AST in 11 lines of PEG rules:
 
 ```lua
-local rex = require 'lpegrex'
+local lpegrex = require 'lpegrex'
 
-local json_patt = rex.compile([[
+local patt = lpegrex.compile([[
 Json          <-- SKIP (Object / Array) (!.)^UnexpectedSyntax
 Object        <== `{` (Member (`,` @Member)*)? `}`
 Array         <== `[` (Value (`,` @Value)*)? `]`
@@ -203,10 +225,17 @@ ESCAPE        <-- [\/"] / ('b' $8 / 't' $9 / 'n' $10 / 'f' $12 / 'r' $13 / 'u' {
 SKIP          <-- %s*
 ]])
 
-local jsontext = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
-local json, errlabel, errpos = json_patt:match(jsontext)
-assert(json, errlabel)
--- `json` should be a table with the AST
+local source = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
+
+local ast, errlabel, errpos = patt:match(source)
+if not ast then
+  local lineno, colno, line = lpegrex.calcline(source, errpos)
+  local colhelp = string.rep(' ', colno-1)..'^'
+  error('syntax error: '..lineno..':'..colno..': '..errlabel..
+        '\n'..line..'\n'..colhelp)
+end
+-- `ast` should be a table with the JSON
+print('JSON parsed with success!')
 ```
 
 The above should parse into the following equivalent AST table:
@@ -225,15 +254,69 @@ local json = { tag = "Array", pos = 1, endpos = 73,
 }
 ```
 
-## Complete Examples
-
-* Lua 5.4 syntax is defined in
-[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
-it servers as a good example on how to define a full language grammar in a single PEG
-that generates an AST suitable to be analyzed by a compiler.
-
-* A JSON parser is defined in a single PEG in
+This example can be found in
 [tests/json.lua](https://github.com/edubart/lpegrex/blob/main/tests/json.lua).
+
+## Complete Example
+
+A Lua 5.4 parser is defined in
+[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
+it servers as a good example on how to define a full language grammar in a single PEG that generates an AST suitable to be analyzed by a compiler,
+while also handle source file syntax errors.
+You can run it to parse any Lua file and print its AST.
+
+For example by doing `lua tests/lua.lua tests/fact.lua` you should
+get the following AST output:
+
+```
+Block
+| FuncDecl
+| | Id
+| | | "fact"
+| | -
+| | | Id
+| | | | "n"
+| | Block
+| | | If
+| | | | BinaryOp
+| | | | | Id
+| | | | | | "n"
+| | | | | "eq"
+| | | | | Number
+| | | | | | 0
+| | | | Block
+| | | | | Return
+| | | | | | -
+| | | | | | | Number
+| | | | | | | | 1
+| | | | Block
+| | | | | Return
+| | | | | | -
+| | | | | | | BinaryOp
+| | | | | | | | Id
+| | | | | | | | | "n"
+| | | | | | | | "mul"
+| | | | | | | | Call
+| | | | | | | | | -
+| | | | | | | | | | BinaryOp
+| | | | | | | | | | | Id
+| | | | | | | | | | | | "n"
+| | | | | | | | | | | "sub"
+| | | | | | | | | | | Number
+| | | | | | | | | | | | 1
+| | | | | | | | | Id
+| | | | | | | | | | "fact"
+| Call
+| | -
+| | | Call
+| | | | -
+| | | | | Number
+| | | | | | 10
+| | | | Id
+| | | | | "fact"
+| | Id
+| | | "print"
+```
 
 ## Dependencies
 
