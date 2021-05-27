@@ -337,15 +337,6 @@ it("nested substitutions", function()
   eq(c:match"0123456789", "9876543210")
 end)
 
-it("grammar syntax errors", function()
-  expect.fail(function() compile('aaaa') end, "rule 'aaaa'")
-  expect.fail(function() compile('a') end, 'outside')
-  expect.fail(function() compile('b <- a') end, 'undefined')
-  expect.fail(function() compile('b <- %invalid') end, 'undefined')
-  expect.fail(function() compile("x <- 'a'  x <- 'b'") end, 'already defined')
-  expect.fail(function() compile("'a' -") end, 'incorrect pattern')
-end)
-
 it("error labels", function()
   local c = compile[['a' / %{l1}]]
   eq(c:match("a"), 2)
@@ -462,6 +453,39 @@ it("error labels with captures", function()
   eq({"44", "58", "123"}, {c:match("44 a 123")})
 end)
 
+it("grammar syntax errors", function()
+  expect.fail(function() compile('aaaa') end, "rule 'aaaa'")
+  expect.fail(function() compile('a') end, 'outside')
+  expect.fail(function() compile('b <- a') end, 'undefined')
+  expect.fail(function() compile('b <- %invalid') end, 'undefined')
+  expect.fail(function() compile("x <- 'a'  x <- 'b'") end, 'already defined')
+  expect.fail(function() compile("'a' -") end, 'unexpected characters')
+end)
+
+it("some syntax errors", function()
+  expect.fail(function() compile([[~]]) end, [[L1:C1: no pattern found
+~
+^]])
+  expect.fail(function() compile([['p'~]]) end, [[L1:C4: unexpected characters after the pattern
+'p'~
+   ^]])
+  expect.fail(function() compile([['p' /]]) end, [[L1:C5: expected a pattern after '/'
+'p' /
+    ^]])
+  expect.fail(function() compile([[&]]) end, [[L1:C1: expected a pattern after '&'
+&
+^]])
+  expect.fail(function() compile([[ A <- %nosuch ('error']]) end, [[L1:C22: missing closing ')'
+ A <- %nosuch ('error'
+                     ^]])
+end)
+
+it("non syntax errors", function()
+  expect.fail(function() compile([[A <- %nosuch %def]]) end, [[name 'nosuch' undefined]])
+  expect.fail(function() compile([[names not in grammar]]) end, [[rule 'names' used outside a grammar]])
+  expect.fail(function() compile([[A<-. A<-.]]) end, [['A' already defined as a rule]])
+end)
+
 end)
 
 describe("lpegrex extensions", function()
@@ -498,8 +522,8 @@ it("matching unique tokens", function()
   local c = compile([[
     chunk <-| (Dot1 / Dot2 / Dot3)*
     Dot1 <== `.` NAME
-    Dot2 <== `..` NAME
     Dot3 <== `...` NAME
+    Dot2 <== `..` NAME
     NAME <- {%w+} SKIP
     SKIP <- %s*
   ]],{__options={pos=false, endpos=false}})
@@ -559,13 +583,13 @@ it("expected matches", function()
   eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
 
   c = compile[[
-    rules <- @`test` @`aaaa`
+    rules <- @`test` @`=`
     NAME_SUFFIX <- [_%w]+
     SKIP <- %s*
   ]]
-  eq(c:match'test aaaa', 10)
+  eq(c:match'test =', 7)
   eq({nil, 'Expected_test', 1}, {c:match'tesi aaaa'})
-  eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
+  eq({nil, 'Expected_=', 6}, {c:match'test !'})
 
   c = compile[[
     rules <- @test %s* @aaaa
@@ -665,8 +689,54 @@ it("quick ref examples", function()
   ]])})
 end)
 
-it("grammar syntax errors", function()
-  -- expect.fail(function() compile([[~]]) end, "asd")
+it("calcline", function()
+  expect.fail(function() lpegrex.calcline("a", -1) end, "invalid position")
+
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a", 0)})
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a", 1)})
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a", 2)})
+
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a\n", 0)})
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a\n", 1)})
+  eq({2, 1, "", 3, 2}, {lpegrex.calcline("a\n", 2)})
+
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a\nb", 0)})
+  eq({1, 1, "a", 1, 1}, {lpegrex.calcline("a\nb", 1)})
+  eq({2, 1, "b", 3, 3}, {lpegrex.calcline("a\nb", 2)})
+  eq({2, 1, "b", 3, 3}, {lpegrex.calcline("a\nb", 3)})
+
+  eq({1, 1, "", 1, 0}, {lpegrex.calcline("\n", 0)})
+  eq({2, 1, "", 2, 1}, {lpegrex.calcline("\n", 1)})
+  eq({2, 1, "", 2, 1}, {lpegrex.calcline("\n", 2)})
+
+  eq({1, 1, "", 1, 0}, {lpegrex.calcline("\n\n", 0)})
+  eq({2, 1, "", 2, 1}, {lpegrex.calcline("\n\n", 1)})
+  eq({3, 1, "", 3, 2}, {lpegrex.calcline("\n\n", 2)})
+  eq({3, 1, "", 3, 2}, {lpegrex.calcline("\n\n", 3)})
+
+  local text = [[some
+long
+
+text
+]]
+  eq({ 1, 1, "some", 1, 4 }, {lpegrex.calcline(text, 0)})
+  eq({ 1, 1, "some", 1, 4 }, {lpegrex.calcline(text, 1)})
+  eq({ 1, 2, "some", 1, 4 }, {lpegrex.calcline(text, 2)})
+  eq({ 1, 3, "some", 1, 4 }, {lpegrex.calcline(text, 3)})
+  eq({ 1, 4, "some", 1, 4 }, {lpegrex.calcline(text, 4)})
+  eq({ 2, 1, "long", 6, 9 }, {lpegrex.calcline(text, 5)})
+  eq({ 2, 1, "long", 6, 9 }, {lpegrex.calcline(text, 6)})
+  eq({ 2, 2, "long", 6, 9 }, {lpegrex.calcline(text, 7)})
+  eq({ 2, 3, "long", 6, 9 }, {lpegrex.calcline(text, 8)})
+  eq({ 2, 4, "long", 6, 9 }, {lpegrex.calcline(text, 9)})
+  eq({ 3, 1, "", 11, 10 }, {lpegrex.calcline(text, 10)})
+  eq({ 4, 1, "text", 12, 15 }, {lpegrex.calcline(text, 11)})
+  eq({ 4, 1, "text", 12, 15 }, {lpegrex.calcline(text, 12)})
+  eq({ 4, 2, "text", 12, 15 }, {lpegrex.calcline(text, 13)})
+  eq({ 4, 3, "text", 12, 15 }, {lpegrex.calcline(text, 14)})
+  eq({ 4, 4, "text", 12, 15 }, {lpegrex.calcline(text, 15)})
+  eq({ 5, 1, "", 17, 16 }, {lpegrex.calcline(text, 16)})
+  eq({ 5, 1, "", 17, 16 }, {lpegrex.calcline(text, 17)})
 end)
 
 end)

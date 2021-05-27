@@ -27,13 +27,8 @@ local defrexoptions = {
 }
 local rexoptions
 
--- Localize some global functions.
-local utf8char = utf8 and utf8.char or string.char
-local select, tonumber = select, tonumber
-local insert = table.insert
-
 -- LPeGRex syntax errors.
-local ErrorDescs = {
+local ErrorInfo = {
   NoPatt = "no pattern found",
   ExtraChars = "unexpected characters after the pattern",
 
@@ -77,6 +72,11 @@ local ErrorDescs = {
   MisTerm3 = "missing terminating backtick quote",
 }
 
+-- Localize some functions used in compiled PEGs.
+local utf8char = utf8 and utf8.char or string.char
+local select, tonumber = select, tonumber
+local insert = table.insert
+
 -- Pattern matching any character.
 local Any = lpeg.P(1)
 
@@ -101,11 +101,8 @@ local Predef = {
 -- Fold tables to the left (use only with `~>`).
 -- Example: ({1}, {2}, {3}) -> {{{1}, 2}, 3}
 function Predef.foldleft(lhs, rhs)
-  if rhs then
-    insert(rhs, 1, lhs)
-    return rhs
-  end
-  return lhs
+  insert(rhs, 1, lhs)
+  return rhs
 end
 
 -- Fold tables to the right (use only with `->`).
@@ -139,11 +136,8 @@ end
 -- Fold tables to the right in reverse order (use only with `~>`)
 -- Example: ({1}, {2}, {3}) -> {3, {2, {1}}
 function Predef.rfoldright(lhs, rhs)
-  if rhs then
-    rhs[#rhs+1] = lhs
-    return rhs
-  end
-  return lhs
+  rhs[#rhs+1] = lhs
+  return rhs
 end
 
 -- Updates the pre-defined character classes to the current locale.
@@ -179,7 +173,7 @@ function lpegrex.updatelocale()
   setmetatable(gcache, weakmt)
 end
 
--- fill classes using the default locale
+-- Fill predefined classes using the default locale.
 lpegrex.updatelocale()
 
 -- Create LPegRex syntax pattern.
@@ -217,7 +211,7 @@ local function mkrex()
   local function getuserdef(id, defs)
     local v = defs and defs[id] or Predef[id]
     if not v then
-      error("undefined name: " .. id)
+      error("name '" .. id .. "' undefined")
     end
     return v
   end
@@ -452,11 +446,23 @@ function lpegrex.compile(pattern, defs)
     return pattern
   end
   rexoptions = defs and defs.__options
-  local cp, label, pos = rexpatt:match(pattern, 1, defs)
+  local ok, cp, errlabel, errpos = pcall(function()
+    return rexpatt:match(pattern, 1, defs)
+  end)
   rexoptions = nil
+  if not ok and cp then
+    if type(cp) == "string" then
+      cp = cp:gsub("^[^:]+:[^:]+: ", "")
+    end
+    error(cp, 3)
+  end
   if not cp then
-    -- TODO: show syntax errors
-    error("incorrect pattern " .. label, 3)
+    local lineno, colno, line, linepos = lpegrex.calcline(pattern, errpos)
+    local err = {"syntax error(s) in pattern\n"}
+    table.insert(err, "L"..lineno..":C"..colno..": "..ErrorInfo[errlabel])
+    table.insert(err, line)
+    table.insert(err, (" "):rep(colno-1)..'^')
+    error(table.concat(err, "\n"), 3)
   end
   return cp
 end
@@ -518,24 +524,24 @@ function lpegrex.gsub(subject, pattern, replacement)
   return cp:match(subject)
 end
 
--- Extract line number, column, content, start position and end position from a multi line text.
-function lpegrex.calcline(s, i)
-  if i == 1 then
-    local lineend = s:find("\n", 1, true)
-    lineend = lineend and lineend-1 or #s
-    local line = s:sub(1, lineend)
-    return 1, 1, line, 1, lineend
-  end
-  local subs = s:sub(1,i)
+--[[
+Extract line information from `position` in `subject`.
+Returns line number, column number, line content, line start position and line end position.
+]]
+function lpegrex.calcline(subject, position)
+  if position < 0 then error 'invalid position' end
+  local sublen = #subject
+  if position > sublen then position = sublen end
+  local subs = subject:sub(1,position)
   local rest, lineno = subs:gsub("[^\n]*\n", "")
   lineno = 1 + lineno
   local colno = #rest
   colno = colno ~= 0 and colno or 1
   local linestart = subs:find("\n[^\n]*$")
   linestart = linestart and linestart+1 or 1
-  local lineend = s:find("\n", i+1, true)
-  lineend = lineend and lineend-1 or #s
-  local line = s:sub(linestart, lineend)
+  local lineend = subject:find("\n", position+1, true)
+  lineend = lineend and lineend-1 or #subject
+  local line = subject:sub(linestart, lineend)
   return lineno, colno, line, linestart, lineend
 end
 

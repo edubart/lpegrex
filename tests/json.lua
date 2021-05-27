@@ -35,3 +35,4 @@ local expected_json =
 }
 local expect = require 'tests.lester'.expect
 expect.equal(json, expected_json)
+print('JSON ok!')
