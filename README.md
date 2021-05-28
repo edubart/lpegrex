@@ -55,7 +55,8 @@ programming language compiler.
 
 ## Quick References
 
-For reference on how to use `re` and its syntax, please check [its manual](http://www.inf.puc-rio.br/~roberto/lpeg/re.html) first.
+For reference on how to use `re` and its syntax,
+please check [its manual](http://www.inf.puc-rio.br/~roberto/lpeg/re.html) first.
 
 Here is a quick reference of the new syntax additions:
 
@@ -71,14 +72,14 @@ Here is a quick reference of the new syntax additions:
 | Arbitrary capture | `$'string'` | `''->'string'` |
 | Expected match | `@'string' @rule` | `'string'^Expected_string rule^Expected_rule` |
 
-As you can notice the added syntax is mostly syntax sugar
-for common patterns used when defining programming language grammars.
+As you can notice the additional syntax is mostly sugar
+for common capture patterns that are used when defining programming language grammars.
 
 ## Folding auxiliary functions
 
-Here by folding we mean reducing a list of table captures into a single table.
-This is useful when generating ASTs because often we need to reduce
-a list of AST nodes into a single AST node (e.g. when reducing a call chain).
+Often we need to reduce a list of captured AST nodes into a single captured AST node
+(e.g. when reducing a call chain),
+here we call this operation folding.
 The following table demonstrates the four ways to fold a list of nodes:
 
 | Purpose | Example Input | Corresponding Output | Syntax |
@@ -108,7 +109,7 @@ the following tables show auxiliary syntax to help on that:
 
 ## Capture auxiliary functions
 
-Sometimes is we need to substitute a list of captures by a lua value,
+Sometimes is useful to substitute a list of captures by a lua value,
 the following tables show auxiliary functions to help on that:
 
 | Purpose | Syntax | Captured Lua Value |
@@ -240,7 +241,7 @@ print('JSON parsed with success!')
 
 The above should parse into the following equivalent AST table:
 ```lua
-local json = { tag = "Array", pos = 1, endpos = 73,
+local ast = { tag = "Array", pos = 1, endpos = 73,
   { tag = "Object", pos = 2, endpos = 72,
     { tag = "Member", pos = 3, endpos = 24,
     "string","some\ntext" },
@@ -261,8 +262,9 @@ This example can be found in
 
 A Lua 5.4 parser is defined in
 [tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
-it servers as a good example on how to define a full language grammar in a single PEG that generates an AST suitable to be analyzed by a compiler,
-while also handle source file syntax errors.
+it servers as a good example on how to define a full language grammar
+in a single PEG that generates an AST suitable to be analyzed by a compiler,
+while also handling source syntax errors.
 You can run it to parse any Lua file and print its AST.
 
 For example by doing `lua tests/lua.lua tests/fact.lua` you should
@@ -318,10 +320,22 @@ Block
 | | | "print"
 ```
 
-## Dependencies
+## Installing
 
 To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
 to be properly installed.
+If you have it already installed you can just copy the
+[lpegrex.lua](https://github.com/edubart/lpegrex/blob/main/lpegrex.lua) file.
+
+If you can also install it using the
+[LuaRocks](https://luarocks.org/) package manager,
+with the following command:
+
+```shell
+luarocks install lpegrex
+```
+
+The library should work with Lua 5.x versions (and also LuaJIT).
 
 ## Tests
 
