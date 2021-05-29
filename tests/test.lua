@@ -623,6 +623,15 @@ it("node capture", function()
     num:Number <== {%d+} %s*
   ]]
   eq({tag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
+
+  c = compile([[
+    chunk <-- num
+    num:Number <== {%d+} %s*
+  ]], {__options={tag=function(name, node)
+    node.mytag = name
+    return node
+  end}})
+  eq({mytag="Number", pos=1, endpos=5, "1234"}, c:match('1234'))
 end)
 
 it("quick ref examples", function()

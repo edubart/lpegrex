@@ -142,7 +142,26 @@ local mypatt = rex.compile(mygrammar, {__options = {
 ```
 
 The fields `pos` and `endpos` are useful to generate error messages with precise location
-later when analyzing the AST. The `tag` field is used to distinguish the node type.
+when analyzing the AST and the `tag` field is used to distinguish the node type.
+
+## Captured node action
+
+In case `defs.__options.tag` is a function, then it's called and the user will be responsible for
+setting the tag field and return the node, this flexibility exists in case
+specific actions are required to be executed on node creation, for example:
+
+```lua
+local mypatt = rex.compile(mygrammar, {__options = {
+  tag = function(tag, node)
+    print('new node', tag)
+    node.tag = tag
+    return node
+  end
+}})
+```
+
+Note that when this function is called the node children may be incomplete
+in case the node is being folded.
 
 ## Matching keywords and tokens
 

@@ -329,6 +329,25 @@ local function mkrex()
     return p
   end
 
+  local function makenode(n, tag, p)
+    local tagfield, posfield, endposfield = getopt('tag'), getopt('pos'), getopt('endpos')
+    local istagfunc = type(tagfield) == 'function'
+    if tagfield and not istagfunc then
+      p = l.Cg(l.Cc(tag), tagfield) * p
+    end
+    if posfield then
+      p = l.Cg(l.Cp(), posfield) * p
+    end
+    if endposfield then
+      p = p * l.Cg(l.Cp(), endposfield)
+    end
+    local rp = l.Ct(p)
+    if istagfunc then
+      rp = l.Cc(tag) * rp / tagfield
+    end
+    return n, rp
+  end
+
   local exp = l.P{ "Exp",
     Exp = S * ( l.V"Grammar"
                 + l.Cf(l.V"Seq" * (S * "/" * expect(S * l.V"Seq", "ExpPatt1"))^0, lmt.__add) );
@@ -403,20 +422,8 @@ local function mkrex()
     TableDefinition = Name * TableArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
         return n, l.Ct(p)
       end;
-    NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
-        local tagfield, posfield, endposfield = getopt('tag'), getopt('pos'), getopt('endpos')
-        if tagfield then p = l.Cg(l.Cc(n), tagfield) * p end
-        if posfield then p = l.Cg(l.Cp(), posfield) * p end
-        if endposfield then p = p * l.Cg(l.Cp(), endposfield) end
-        return n, l.Ct(p)
-      end;
-    TaggedNodeDefinition = Name * S * l.P":" * S * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / function(n, tag, p)
-        local tagfield, posfield, endposfield = getopt('tag'), getopt('pos'), getopt('endpos')
-        if tagfield then p = l.Cg(l.Cc(tag), tagfield) * p end
-        if posfield then p = l.Cg(l.Cp(), posfield) * p end
-        if endposfield then p = p * l.Cg(l.Cp(), endposfield) end
-        return n, l.Ct(p)
-      end;
+    NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") /  function(n, p) return makenode(n, n, p) end;
+    TaggedNodeDefinition = Name * S * l.P":" * S * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / makenode;
     Definition = l.V"TaggedNodeDefinition" + l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
     Grammar = l.Cg(l.Cc(true), "G")
               * l.Cf(l.P"" / begindef
