@@ -529,6 +529,12 @@ it("matching unique tokens", function()
   ]],{__options={pos=false, endpos=false}})
   eq({{tag="Dot1", "1"}, {tag="Dot2", "2"}, {tag="Dot3", "3"}}, c:match('.1 ..2 ...3'))
   eq({{tag="Dot3", "3"}, {tag="Dot2", "2"}, {tag="Dot1", "1"}}, c:match('...3 ..2 .1'))
+
+  c = compile([[
+    chunk <- `.` `..` `...` TOKEN TOKEN TOKEN
+    SKIP <- %s*
+  ]])
+  eq(c:match('. .. ... ... . .. '), 19)
 end)
 
 it("matching unique keywords", function()
@@ -596,8 +602,8 @@ it("expected matches", function()
     test <- 'test'
     aaaa <- 'aaaa'
   ]]
-  eq({nil, 'ExpectedRule_test', 1}, {c:match'tesi aaaa'})
-  eq({nil, 'ExpectedRule_aaaa', 6}, {c:match'test aaab'})
+  eq({nil, 'Expected_test', 1}, {c:match'tesi aaaa'})
+  eq({nil, 'Expected_aaaa', 6}, {c:match'test aaab'})
 
 end)
 

@@ -232,6 +232,15 @@ local function mkrex()
   end
 
   local function enddef(t)
+    -- generate TOKEN rule
+    if Gtokens and #Gtokens > 0 then
+      local TOKEN = Gtokens[Gtokens[1]]
+      for i=2,#Gtokens do
+        TOKEN = TOKEN + Gtokens[Gtokens[i]]
+      end
+      G.TOKEN = TOKEN
+    end
+    -- cleanup grammar context
     G, Gkeywords, Gtokens = nil, nil, nil
     return l.P(t)
   end
@@ -408,7 +417,7 @@ local function mkrex()
                               return makekeyword(s, defs) + l.T('Expected_'..s)
                             end
                             + Name * l.Cb("G") / function(n, b)
-                              return NT(n, b) + l.T('ExpectedRule_'..n)
+                              return NT(n, b) + l.T('Expected_'..n)
                             end,
                             "ExpName5")
             + "{~" * expect(l.V"Exp", "ExpPatt6")

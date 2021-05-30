@@ -38,6 +38,7 @@ programming language compiler.
 * New syntax for matching unique tokens with automatic skipping (e.g. `` `,` ``).
 * New syntax for matching unique keywords with automatic skipping (e.g. `` `for` ``).
 * Auto generate `KEYWORD` rule based on used keywords in the grammar.
+* Auto generate `TOKEN` rule based on used tokens in the grammar.
 * Use supplied `NAME_SUFFIX` rule for generating each keyword rule.
 * Use supplied `SKIP` rule for generating each keyword or token rule.
 * Capture nodes with initial and final positions.
@@ -177,7 +178,10 @@ Tokens matches are always unique in case of common characters, that is,
 in case both `.` and `..` tokens are defined, the rule `` `.` `` will match
 `.` but not `..`.
 
-In case of a **keyword** is found,
+In case a token is found, the rule `TOKEN` will be automatically generated,
+this rule will match any token plus SKIP.
+
+In case a **keyword** is found,
 the rule `NAME_SUFFIX` also need to be defined, it's used
 to differentiate keywords from identifier names.
 
