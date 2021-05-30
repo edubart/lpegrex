@@ -258,7 +258,10 @@ local function mkrex()
   end
 
   local S = (Predef.space + "--" * (Any - Predef.nl)^0)^0
-  local Name = l.C(l.R("AZ", "az", "__") * l.R("AZ", "az", "__", "09")^0)
+  local NamePrefix = l.R("AZ", "az", "__")
+  local NameSuffix = l.R("AZ", "az", "__", "--", "09")^0
+  local Name = l.C(NamePrefix * NameSuffix)
+  local TokenDigit = Predef.punct - "_"
   local NodeArrow = S * "<=="
   local TableArrow = S * "<-|"
   local RuleArrow = S * (l.P"<--" + "<-")
@@ -267,8 +270,8 @@ local function mkrex()
   local SignedNum = l.C(l.P"-"^-1 * l.R"09"^1) * S / tonumber
   local String = "'" * l.C((Any - "'")^0) * expect("'", "MisTerm1")
                + '"' * l.C((Any - '"')^0) * expect('"', "MisTerm2")
-  local Token = "`" * l.C(Predef.punct * (Predef.punct - '`')^0) * expect("`", "MisTerm3")
-  local Keyword = "`" * l.C(Predef.alpha * (Any - "`")^0) * expect('`', "MisTerm3")
+  local Token = "`" * l.C(TokenDigit * (TokenDigit - '`')^0) * expect("`", "MisTerm3")
+  local Keyword = "`" * l.C(NamePrefix * (Any - "`")^0) * expect('`', "MisTerm3")
   local Range = l.Cs(Any * (l.P"-"/"") * (Any - "]")) / l.R
   local Defs = l.Carg(1)
   local NamedDef = Name * Defs -- a defined name only have meaning in a given environment

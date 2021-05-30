@@ -1,4 +1,4 @@
-local LUA_PEG = [[
+local Grammar = [[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
 Block         <== ( Label / Return / Break / Goto / Do / While / Repeat / If / ForNum / ForIn
@@ -158,7 +158,7 @@ local source = file:read('a')
 
 -- Compile grammar
 local lpegrex = require 'lpegrex'
-local patt = lpegrex.compile(LUA_PEG)
+local patt = lpegrex.compile(Grammar)
 
 -- Parse source
 local ast, errlabel, errpos = patt:match(source)

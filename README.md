@@ -41,6 +41,7 @@ programming language compiler.
 * Use supplied `NAME_SUFFIX` rule for generating each keyword rule.
 * Use supplied `SKIP` rule for generating each keyword or token rule.
 * Capture nodes with initial and final positions.
+* Support using `-` character in rule names.
 * Pre define some useful auxiliary functions:
     * `tonil` Substitute captures by `nil`.
     * `totrue` Substitute captures by `true`.
@@ -166,8 +167,8 @@ in case the node is being folded.
 ## Matching keywords and tokens
 
 When using the back tick syntax (e.g. `` `something` ``),
-LPegRex will register its contents as a **keyword** in case it begins with a letter,
-or as **token** in case it contains only punctuation characters.
+LPegRex will register its contents as a **keyword** in case it begins with a letter (or `_`),
+or as **token** in case it contains only punctuation characters (except `_`).
 
 Both keywords and tokens always match the `SKIP` rule immediately to
 skip spaces, thus the rule `SKIP` must always be defined when using the back tick syntax.
