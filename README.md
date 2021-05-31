@@ -232,23 +232,24 @@ end
 
 ## Usage Example
 
-Here is a small example parsing JSON into an AST in 11 lines of PEG rules:
+Here is a small example parsing JSON into an AST in 12 lines of PEG rules:
 
 ```lua
 local lpegrex = require 'lpegrex'
 
 local patt = lpegrex.compile([[
 Json          <-- SKIP (Object / Array) (!.)^UnexpectedSyntax
-Object        <== `{` (Member (`,` @Member)*)? `}`
-Array         <== `[` (Value (`,` @Value)*)? `]`
-Member        <== String @`:` @Value
+Object        <== `{` (Member (`,` @Member)*)? @`}`
+Array         <== `[` (Value (`,` @Value)*)? @`]`
+Member        <== String `:` @Value
 Value         <-- String / Number / Object / Array / Boolean / Null
-String        <-- '"' {~ ('\' -> '' @ESCAPE / !'"' .)* ~} '"' SKIP
+String        <-- '"' {~ ('\' -> '' @ESCAPE / !'"' .)* ~} @'"' SKIP
 Number        <-- {[+-]? (%d+ '.'? %d+? / '.' %d+) ([eE] [+-]? %d+)?} -> tonumber SKIP
-Boolean       <-- 'false' -> tofalse / 'true' -> totrue
-Null          <-- 'null' -> tonil
+Boolean       <-- `false` -> tofalse / `true` -> totrue
+Null          <-- `null` -> tonil
 ESCAPE        <-- [\/"] / ('b' $8 / 't' $9 / 'n' $10 / 'f' $12 / 'r' $13 / 'u' {%x^4} $16) -> tochar
 SKIP          <-- %s*
+NAME_SUFFIX   <-- [_%w]+
 ]])
 
 local source = '[{"string":"some\\ntext", "boolean":true, "number":-1.5e+2, "null":null}]'
@@ -280,19 +281,39 @@ local ast = { tag = "Array", pos = 1, endpos = 73,
 }
 ```
 
-This example can be found in
-[tests/json.lua](https://github.com/edubart/lpegrex/blob/main/tests/json.lua).
+A JSON parser similar to this example can be found in
+[parsers/json.lua](https://github.com/edubart/lpegrex/blob/main/examples/json.lua).
 
-## Complete Example
+## Installing
+
+To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
+to be properly installed.
+If you have it already installed you can just copy the
+[lpegrex.lua](https://github.com/edubart/lpegrex/blob/main/lpegrex.lua) file.
+
+If you can also install it using the
+[LuaRocks](https://luarocks.org/) package manager,
+with the following command:
+
+```shell
+luarocks install lpegrex
+```
+
+The library should work with Lua 5.x versions (and also LuaJIT).
+
+## Complete Lua Example
 
 A Lua 5.4 parser is defined in
-[tests/lua.lua](https://github.com/edubart/lpegrex/blob/main/tests/lua.lua),
+[parsers/lua.lua](https://github.com/edubart/lpegrex/blob/main/parsers/lua.lua),
 it servers as a good example on how to define a full language grammar
 in a single PEG that generates an AST suitable to be analyzed by a compiler,
 while also handling source syntax errors.
+
+A Lua AST printer using it is available in
+[examples/lua.lua](https://github.com/edubart/lpegrex/blob/main/examples/lua-ast.lua)
 You can run it to parse any Lua file and print its AST.
 
-For example by doing `lua tests/lua.lua tests/fact.lua` you should
+For example by doing `lua examples/lua-ast.lua inputs/fact.lua` you should
 get the following AST output:
 
 ```
@@ -345,26 +366,129 @@ Block
 | | | "print"
 ```
 
-## Installing
+## Complete C11 example
 
-To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
-to be properly installed.
-If you have it already installed you can just copy the
-[lpegrex.lua](https://github.com/edubart/lpegrex/blob/main/lpegrex.lua) file.
+A complete C11 parser has been implemented and is available in
+[parsers/c11.lua](https://github.com/edubart/lpegrex/blob/main/parsers/c11.lua),
+it's experimental but it was verified to parse hundreds of prepossessed C file sources.
 
-If you can also install it using the
-[LuaRocks](https://luarocks.org/) package manager,
-with the following command:
+A C11 AST printer using it is available in
+[examples/c11-ast.lua](https://github.com/edubart/lpegrex/blob/main/examples/c11-ast.lua).
 
-```shell
-luarocks install lpegrex
+Note that the C file must be preprocessed, you can generate a preprocessed C file
+with GCC/Clang or running `gcc -E file.c > file_preprocessed.c`.
+
+For example by doing `lua examples/c11-ast.lua inputs/fact.c` you should
+get the following AST output:
+
 ```
-
-The library should work with Lua 5.x versions (and also LuaJIT).
+translation-unit
+| declaration
+| | type-declaration
+| | | declaration-specifiers
+| | | | storage-class-specifier
+| | | | | "extern"
+| | | | type-specifier
+| | | | | "int"
+| | | init-declarator-list
+| | | | init-declarator
+| | | | | declarator
+| | | | | | declarator-parameters
+| | | | | | | identifier
+| | | | | | | | "printf"
+| | | | | | | parameter-type-list
+| | | | | | | | parameter-declaration
+| | | | | | | | | declaration-specifiers
+| | | | | | | | | | type-qualifier
+| | | | | | | | | | | "const"
+| | | | | | | | | | type-specifier
+| | | | | | | | | | | "char"
+| | | | | | | | | declarator
+| | | | | | | | | | pointer
+| | | | | | | | | | | identifier
+| | | | | | | | | | | | "format"
+| | | | | | | | parameter-varargs
+| function-definition
+| | declaration-specifiers
+| | | storage-class-specifier
+| | | | "static"
+| | | type-specifier
+| | | | "int"
+| | declarator
+| | | declarator-parameters
+| | | | identifier
+| | | | | "fact"
+| | | | parameter-type-list
+| | | | | parameter-declaration
+| | | | | | declaration-specifiers
+| | | | | | | type-specifier
+| | | | | | | | "int"
+| | | | | | declarator
+| | | | | | | identifier
+| | | | | | | | "n"
+| | declaration-list
+| | compound-statement
+| | | if-statement
+| | | | expression
+| | | | | binary-op
+| | | | | | identifier
+| | | | | | | "n"
+| | | | | | "=="
+| | | | | | integer-constant
+| | | | | | | "0"
+| | | | return-statement
+| | | | | expression
+| | | | | | integer-constant
+| | | | | | | "1"
+| | | | return-statement
+| | | | | expression
+| | | | | | binary-op
+| | | | | | | identifier
+| | | | | | | | "n"
+| | | | | | | "*"
+| | | | | | | argument-expression
+| | | | | | | | argument-expression-list
+| | | | | | | | | binary-op
+| | | | | | | | | | identifier
+| | | | | | | | | | | "n"
+| | | | | | | | | | "-"
+| | | | | | | | | | integer-constant
+| | | | | | | | | | | "1"
+| | | | | | | | identifier
+| | | | | | | | | "fact"
+| function-definition
+| | declaration-specifiers
+| | | type-specifier
+| | | | "int"
+| | declarator
+| | | declarator-parameters
+| | | | identifier
+| | | | | "main"
+| | declaration-list
+| | compound-statement
+| | | expression-statement
+| | | | expression
+| | | | | argument-expression
+| | | | | | argument-expression-list
+| | | | | | | string-literal
+| | | | | | | | "%d\\n"
+| | | | | | | argument-expression
+| | | | | | | | argument-expression-list
+| | | | | | | | | integer-constant
+| | | | | | | | | | "10"
+| | | | | | | | identifier
+| | | | | | | | | "fact"
+| | | | | | identifier
+| | | | | | | "printf"
+| | | return-statement
+| | | | expression
+| | | | | integer-constant
+| | | | | | "0"
+```
 
 ## Tests
 
-Most LPeg/LPegLabel tests where migrated into `tests/test.lua`
+Most LPeg/LPegLabel tests where migrated into `tests/lpegrex-test.lua`
 and new tests for the addition extensions were added.
 
 To run the tests just run `lua tests/test.lua`.

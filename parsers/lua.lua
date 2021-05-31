@@ -1,3 +1,7 @@
+--[[
+This grammar is based on Lua 5.4
+As seen in https://www.lua.org/manual/5.4/manual.html#9
+]]
 local Grammar = [==[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
@@ -149,52 +153,22 @@ local SyntaxErrorLabels = {
   ["UnexpectedSyntax"]    = "unexpected syntax",
 }
 
--- Load source file
-local filename = arg[1]
-if not filename then print 'please pass a lua filename as argument' os.exit(false) end
-local file = io.open(filename)
-if not file then print('failed to open file: '..filename) os.exit(false) end
-local source = file:read('*a')
-
 -- Compile grammar
 local lpegrex = require 'lpegrex'
 local patt = lpegrex.compile(Grammar)
 
--- Parse source
-local ast, errlabel, errpos = patt:match(source)
-if not ast then
-  local lineno, colno, line = lpegrex.calcline(source, errpos)
-  local colhelp = string.rep(' ', colno-1)..'^'
-  local errmsg = SyntaxErrorLabels[errlabel] or errlabel
-  error('syntax error: '..filename..':'..lineno..':'..colno..': '..errmsg..
-        '\n'..line..'\n'..colhelp)
+-- Parse Lua source into an AST.
+local function parse(source, name)
+  local ast, errlabel, errpos = patt:match(source)
+  if not ast then
+    name = name or '<source>'
+    local lineno, colno, line = lpegrex.calcline(source, errpos)
+    local colhelp = string.rep(' ', colno-1)..'^'
+    local errmsg = SyntaxErrorLabels[errlabel] or errlabel
+    error('syntax error: '..name..':'..lineno..':'..colno..': '..errmsg..
+          '\n'..line..'\n'..colhelp)
+  end
+  return ast
 end
 
--- Print its AST
-local function printast(node, indent)
-  indent = indent or ''
-  if node.tag then
-    print(indent..node.tag)
-  else
-    print(indent..'-')
-  end
-  indent = indent..'| '
-  for i=1,#node do
-    local child = node[i]
-    local ty = type(child)
-    if ty == 'table' then
-      printast(child, indent)
-    elseif ty == 'string' then
-      local escaped = child
-        :gsub([[(['"])]], '\\%1')
-        :gsub('\n', '\\n'):gsub('\t', '\\t')
-        :gsub('[^ %w%p]', function(s)
-          return string.format('\\x%02x', string.byte(s))
-        end)
-      print(indent..'"'..escaped..'"')
-    else
-      print(indent..tostring(child))
-    end
-  end
-end
-printast(ast)
+return parse

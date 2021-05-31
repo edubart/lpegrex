@@ -1,4 +1,4 @@
--- Used as an input example to the Lua parser.
+-- Used as an input example for the Lua parser.
 local function fact(n)
   if n == 0 then
     return 1
