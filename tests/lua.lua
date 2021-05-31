@@ -1,4 +1,4 @@
-local Grammar = [[
+local Grammar = [==[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
 Block         <== ( Label / Return / Break / Goto / Do / While / Repeat / If / ForNum / ForIn
@@ -115,7 +115,7 @@ SHEBANG       <-- '#!' (!LINEBREAK .)* LINEBREAK?
 LINEBREAK     <-- %nl %cr / %cr %nl / %nl / %cr
 SKIP          <-- (%s+ / COMMENT)*
 EXTRA_TOKENS  <-- `[[` `[=` `--` -- unused rule, here just to force defining these tokens
-]]
+]==]
 
 -- List of syntax errors
 local SyntaxErrorLabels = {
@@ -154,7 +154,7 @@ local filename = arg[1]
 if not filename then print 'please pass a lua filename as argument' os.exit(false) end
 local file = io.open(filename)
 if not file then print('failed to open file: '..filename) os.exit(false) end
-local source = file:read('a')
+local source = file:read('*a')
 
 -- Compile grammar
 local lpegrex = require 'lpegrex'
