@@ -516,6 +516,8 @@ it("token and keywords literals", function()
   eq(match('a : c', [[G <- `a` `:` `c` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 6)
   eq(match('local function()',
            [[A <- `local` `function` `(` `)` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 17)
+
+  eq({match('{ a \n', [[A <- {`{`} {`a`} SKIP<-%s* NAME_SUFFIX<-[_%w]+]])}, {'{', 'a'})
 end)
 
 it("matching unique tokens", function()

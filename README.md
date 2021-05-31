@@ -193,6 +193,7 @@ SKIP          <- %s+
 ```
 
 You may want to edit the `SKIP` rule to consider comments if you grammar supports them.
+Token and keywords will not capture `SKIP` rule when using the syntax ``{`keyword`}``.
 
 ## Capturing identifier names
 

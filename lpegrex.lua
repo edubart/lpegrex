@@ -54,6 +54,7 @@ local ErrorInfo = {
 
   ExpLab1 = "expected a label after '{'",
 
+  ExpTokOrKey = "expected a keyword or token string after '`'",
   ExpNameOrLab = "expected a name or label after '%' (no space)",
 
   ExpItem = "expected at least one item after '[' or '^'",
@@ -309,7 +310,7 @@ local function mkrex()
     end
   end
 
-  local function maketoken(s)
+  local function maketoken(s, cap)
     local p = Gtokens[s]
     if not p then
       p = l.V(s)
@@ -317,6 +318,9 @@ local function mkrex()
       Gtokens[#Gtokens+1] = s
       G[s] = l.P(s) * l.V(getopt("SKIP"))
       updatetokens(s)
+    end
+    if cap then
+      p = p * l.Cc(s)
     end
     return p
   end
@@ -331,12 +335,15 @@ local function mkrex()
     G.KEYWORD = p
   end
 
-  local function makekeyword(s)
+  local function makekeyword(s, cap)
     local p = Gkeywords[s]
     if not p then
       p = l.P(s) * -l.V(getopt("NAME_SUFFIX")) * l.V(getopt("SKIP"))
       Gkeywords[s] = p
       updatekeywords(p)
+    end
+    if cap then
+      p = p * l.Cc(s)
     end
     return p
   end
@@ -388,8 +395,10 @@ local function mkrex()
             )^0, function(a,b,f) if f == "lab" then return a + l.T(b) end return f(a,b) end );
     Primary = "(" * expect(l.V"Exp", "ExpPatt4") * expect(S * ")", "MisClose1")
             + String / l.P
-            + Token * Defs / maketoken
-            + Keyword * Defs / makekeyword
+            + #l.P'`' * expect(
+                  Token / maketoken
+                + Keyword / makekeyword
+              , "ExpTokOrKey")
             + Class
             + Defined
             + "%" * expect(l.P"{", "ExpNameOrLab")
@@ -401,40 +410,43 @@ local function mkrex()
             + "=" * expect(Name, "ExpName2")
               / function(n) return l.Cmt(l.Cb(n), equalcap) end
             + l.P"{}" / l.Cp
-            + l.P"$" * expect(l.P"nil" / function() return l.Cc(nil) end
-                            + l.P"false" / function() return l.Cc(false) end
-                            + l.P"true" / function() return l.Cc(true) end
-                            + l.P"{}" / function() return l.Cc({}) end
-                            + SignedNum / function(s) return l.Cc(tonumber(s)) end
-                            + String / function(s) return l.Cc(s) end
-                            + (NamedDef / getuserdef) / l.Cc,
-                            "ExpName4")
-            + l.P"@" * expect(String / function(s) return l.P(s) + l.T('Expected_'..s) end
-                            + Token * Defs / function(s, defs)
-                              return maketoken(s, defs) + l.T('Expected_'..s)
-                            end
-                            + Keyword * Defs / function(s, defs)
-                              return makekeyword(s, defs) + l.T('Expected_'..s)
-                            end
-                            + Name * l.Cb("G") / function(n, b)
-                              return NT(n, b) + l.T('Expected_'..n)
-                            end,
-                            "ExpName5")
-            + "{~" * expect(l.V"Exp", "ExpPatt6")
-              * expect(S * "~}", "MisClose3") / l.Cs
-            + "{|" * expect(l.V"Exp", "ExpPatt7")
-              * expect(S * "|}", "MisClose4") / l.Ct
-            + "{" * expect(l.V"Exp", "ExpPattOrClose")
-              * expect(S * "}", "MisClose5") / l.C
+            + l.P"$" * expect(
+                  l.P"nil" / function() return l.Cc(nil) end
+                + l.P"false" / function() return l.Cc(false) end
+                + l.P"true" / function() return l.Cc(true) end
+                + l.P"{}" / function() return l.Cc({}) end
+                + SignedNum / function(s) return l.Cc(tonumber(s)) end
+                + String / function(s) return l.Cc(s) end
+                + (NamedDef / getuserdef) / l.Cc,
+                "ExpName4")
+            + l.P"@" * expect(
+                  String / function(s) return l.P(s) + l.T('Expected_'..s) end
+                + Token / function(s)
+                  return maketoken(s) + l.T('Expected_'..s)
+                end
+                + Keyword / function(s)
+                  return makekeyword(s) + l.T('Expected_'..s)
+                end
+                + Name * l.Cb("G") / function(n, b)
+                  return NT(n, b) + l.T('Expected_'..n)
+                end,
+                "ExpName5")
+            + "{~" * expect(l.V"Exp", "ExpPatt6") * expect(S * "~}", "MisClose3") / l.Cs
+            + "{|" * expect(l.V"Exp", "ExpPatt7") * expect(S * "|}", "MisClose4") / l.Ct
+            + "{" * #l.P'`' * expect(
+                  Token * l.Cc(true) / maketoken
+                + Keyword * l.Cc(true) / makekeyword
+              , "ExpTokOrKey") * expect(S * "}", "MisClose5")
+            + "{" * expect(l.V"Exp", "ExpPattOrClose") * expect(S * "}", "MisClose5") / l.C
             + l.P"." * l.Cc(Any)
             + (Name * -(Arrow + (S * ":" * S * Name * Arrow)) + "<" * expect(Name, "ExpName3")
                * expect(">", "MisClose6")) * l.Cb("G") / NT;
     Label = Num + Name;
     RuleDefinition = Name * RuleArrow * expect(l.V"Exp", "ExpPatt8");
-    TableDefinition = Name * TableArrow * expect(l.V"Exp", "ExpPatt8") / function(n, p)
-        return n, l.Ct(p)
-      end;
-    NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") /  function(n, p) return makenode(n, n, p) end;
+    TableDefinition = Name * TableArrow * expect(l.V"Exp", "ExpPatt8") /
+      function(n, p) return n, l.Ct(p) end;
+    NodeDefinition = Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") /
+      function(n, p) return makenode(n, n, p) end;
     TaggedNodeDefinition = Name * S * l.P":" * S * Name * NodeArrow * expect(l.V"Exp", "ExpPatt8") / makenode;
     Definition = l.V"TaggedNodeDefinition" + l.V"NodeDefinition" + l.V"TableDefinition" + l.V"RuleDefinition";
     Grammar = l.Cg(l.Cc(true), "G")
