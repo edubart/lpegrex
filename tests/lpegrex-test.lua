@@ -509,6 +509,11 @@ it("arbitrary captures", function()
   eq({'text', "something", 0, -1}, {c:match('')})
 end)
 
+it("optional match with false capture", function()
+  eq(match('b', [[{'a'}~?]]), false)
+  eq(match('a', [[{'a'}~?]]), 'a')
+end)
+
 it("token and keywords literals", function()
   eq(match('a', [[A <- `a` NAME_SUFFIX<-[_%w]+ SKIP<-%s*]]), 2)
   eq(match('{', [[A <- `{` SKIP <- %s*]]), 2)
@@ -683,6 +688,30 @@ it("quick ref examples", function()
   ]])}, {match('. .. ',[[
     G <- !('..' SKIP) '.' SKIP '..' SKIP
     SKIP <- %s*
+  ]])})
+
+  eq({match('. ',[[
+    G <- {`,`}
+    SKIP <- %s*
+  ]])}, {match('. ',[[
+    G <- {`,`} SKIP
+    SKIP <- %s*
+  ]])})
+
+  eq({match('0',[[
+    G <- {patt}~?
+    patt <- %d
+  ]])}, {match('0',[[
+    G <- {patt} / ''->tofalse
+    patt <- %d
+  ]])})
+
+  eq({match('a',[[
+    G <- {patt}~?
+    patt <- %d
+  ]])}, {match('a',[[
+    G <- {patt} / ''->tofalse
+    patt <- %d
   ]])})
 
   eq({match('\n',[[

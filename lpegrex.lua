@@ -378,6 +378,7 @@ local function mkrex()
             ( S * ( l.P"+" * l.Cc(1, lmt.__pow)
                   + l.P"*" * l.Cc(0, lmt.__pow)
                   + l.P"?" * l.Cc(-1, lmt.__pow)
+                  + l.P"~?" * l.Cc(l.Cc(false), lmt.__add)
                   + "^" * expect( l.Cg(Num * l.Cc(mult))
                                 + l.Cg(l.C(l.S"+-" * l.R"09"^1) * l.Cc(lmt.__pow)
                                 + Name * l.Cc"lab"

@@ -20,7 +20,7 @@ using a single, simple, compact and clear PEG grammar.
 For instance is in the goal of the project to parse Lua 5.4 source
 files with complete syntax into an abstract syntax tree under 100 lines
 of clear PEG grammar rules while generating an output suitable to be used analyzed by a compiler.
-**This goal was accomplished and it's in the tests folder.**
+**This goal was accomplished, see the Lua example section below.**
 
 The new extensions should not break any existing `re` syntax.
 
@@ -32,6 +32,7 @@ programming language compiler.
 
 * New predefined patterns for control characters (`%ca` `%cb` `%ct` `%cn` `%cv` `%cf` `%cr`).
 * New syntax for capturing arbitrary values while matching empty strings (e.g. `$true`).
+* New syntax for optional captures (e.g `patt~?`).
 * New syntax for throwing labels errors on failure of expected matches (e.g. `@rule`).
 * New syntax for rules that capture AST Nodes (e.g. `NodeName <== patt`).
 * New syntax for rules that capture tables (e.g. `MyList <-| patt`).
@@ -70,6 +71,8 @@ Here is a quick reference of the new syntax additions:
 | Capture table rule | `name <-\| patt` | `name <- {\| patt \|}` |
 | Match keyword | `` `keyword` `` | `'keyword' !NAME_SUFFIX SKIP` |
 | Match token | `` `.` `..` `` | `!('..' SKIP) '.' SKIP '..' SKIP` |
+| Capture token or keyword | `` {`,`} `` | `{','} SKIP` |
+| Optional capture | `` patt~? `` | `patt / ''->tofalse` |
 | Match control character | `%cn` | `%nl` |
 | Arbitrary capture | `$'string'` | `''->'string'` |
 | Expected match | `@'string' @rule` | `'string'^Expected_string rule^Expected_rule` |
@@ -108,13 +111,14 @@ the following tables show auxiliary syntax to help on that:
 | `${}` | `{}` |
 | `$16` | `16` |
 | `$'string'` | `"string"` |
+| `p~?` | `p` captures if it matches, otherwise `false` |
 
 ## Capture auxiliary functions
 
 Sometimes is useful to substitute a list of captures by a lua value,
 the following tables show auxiliary functions to help on that:
 
-| Purpose | Syntax | Captured Lua Value |
+| Purpose | Syntax | Captured Value |
 |-|-|-|
 | Substitute captures by `nil` | `p -> tonil ` | `nil` |
 | Substitute captures by `false` | `p -> tofalse ` | `false` |
@@ -178,8 +182,8 @@ Tokens matches are always unique in case of common characters, that is,
 in case both `.` and `..` tokens are defined, the rule `` `.` `` will match
 `.` but not `..`.
 
-In case a token is found, the rule `TOKEN` will be automatically generated,
-this rule will match any token plus SKIP.
+In case a **token** is found, the rule `TOKEN` will be automatically generated,
+this rule will match any token plus `SKIP`.
 
 In case a **keyword** is found,
 the rule `NAME_SUFFIX` also need to be defined, it's used
@@ -282,7 +286,7 @@ local ast = { tag = "Array", pos = 1, endpos = 73,
 ```
 
 A JSON parser similar to this example can be found in
-[parsers/json.lua](https://github.com/edubart/lpegrex/blob/main/examples/json.lua).
+[parsers/json.lua](https://github.com/edubart/lpegrex/blob/main/parsers/json.lua).
 
 ## Installing
 

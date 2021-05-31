@@ -577,10 +577,7 @@ do-while-statement <==
   `do` @statement @`while` @`(` @expression @`)` @`;`
 
 for-statement <==
-  `for` @`(` (declaration / expression_opt @`;`) expression_opt @`;` expression_opt @`)` @statement
-
-expression_opt <-
-  expression / $false
+  `for` @`(` (declaration / expression~? @`;`) expression~? @`;` expression~? @`)` @statement
 
 goto-statement <==
   `goto` constant-expression @`;`
