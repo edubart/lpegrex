@@ -199,14 +199,10 @@ local function mkrex()
   end
 
   local function equalcap(s, i, c)
-    if type(c) ~= "string" then
-      return nil
-    end
     local e = #c + i
     if s:sub(i, e - 1) == c then
       return e
     end
-    return nil
   end
 
   local function getuserdef(id, defs)
