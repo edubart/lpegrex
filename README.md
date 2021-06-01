@@ -31,6 +31,7 @@ programming language compiler.
 ## Additional Features
 
 * New predefined patterns for control characters (`%ca` `%cb` `%ct` `%cn` `%cv` `%cf` `%cr`).
+* New predefined patterns for utf8 (`%utf8` `%utf8seq` `%ascii`).
 * New syntax for capturing arbitrary values while matching empty strings (e.g. `$true`).
 * New syntax for optional captures (e.g `patt~?`).
 * New syntax for throwing labels errors on failure of expected matches (e.g. `@rule`).
