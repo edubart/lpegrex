@@ -266,7 +266,8 @@ end)
 it("folding captures", function()
   local c = compile([[
     S <- (number (%s+ number)*) ~> add
-    number <- %d+ -> tonumber
+    number <- digit->tonumber
+    digit <- %d+
   ]], {tonumber = tonumber, add = function(a,b) return a + b end})
   eq(c:match("3 401 50"), 3 + 401 + 50)
 end)

@@ -269,7 +269,8 @@ local function mkrex()
 
   local S = (Predef.space + "--" * (Any - Predef.nl)^0)^0
   local NamePrefix = l.R("AZ", "az", "__")
-  local NameSuffix = l.R("AZ", "az", "__", "--", "09")^0
+  local WordSuffix = l.R("AZ", "az", "__", "09")
+  local NameSuffix = (WordSuffix + (l.P"-" * #WordSuffix))^0
   local Name = l.C(NamePrefix * NameSuffix)
   local TokenDigit = Predef.punct - "_"
   local NodeArrow = S * "<=="
