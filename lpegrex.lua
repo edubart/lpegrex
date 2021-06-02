@@ -1,14 +1,18 @@
 --[[
 LPegRex - LPeg Regular Expression eXtended
+v0.2.1 - 1/Jun/2021
 Eduardo Bart - edub4rt@gmail.com
 https://github.com/edubart/lpegrex
+
+Check the project page for documentation on how to use.
+
 See end of file for LICENSE.
 ]]
 
 -- LPegRex depends on LPegLabel.
 local lpeg = require 'lpeglabel'
 
--- Increase LPEG max stack, because the default is too low for use with complex grammars.
+-- Increase LPEG max stack, because the default is too low to use with complex grammars.
 lpeg.setmaxstack(1024)
 
 -- The LPegRex module table.
