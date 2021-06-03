@@ -580,7 +580,14 @@ it("auxiliary functions", function()
   eq(match('1234', '%d+ -> tonumber'), 1234)
   eq(match('ff', '({%x+} $16) -> tonumber'), 0xff)
   eq(match('65', '%d+ -> tochar'), string.char(65))
+  eq(match('255', '%d+ -> tochar'), string.char(255))
   eq(match('41', '({%x+} $16) -> tochar'), string.char(0x41))
+
+  if utf8 and utf8.char then -- support utf8.char
+    eq(match('65', '%d+ -> toutf8char'), string.char(65))
+    eq(match('41', '({%x+} $16) -> toutf8char'), string.char(0x41))
+    eq(match('03C0', '({%x+} $16) -> toutf8char'), "\xCF\x80")
+  end
 
   local c = compile "{| {%d+} %s* |}+ ~> foldleft"
   eq({"1"}, c:match("1"))

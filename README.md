@@ -52,7 +52,8 @@ programming language compiler.
     * `tofalse` Substitute captures by `false`.
     * `toemptytable` Substitute captures by `{}`.
     * `tonumber` Substitute a string capture by its corresponding number.
-    * `tochar` Substitute a numeric code capture by its corresponding UTF-8 character.
+    * `tochar` Substitute a numeric code capture by its corresponding character byte.
+    * `toutf8char` Substitute a numeric code capture by its corresponding UTF-8 byte sequence.
     * `foldleft` Fold tables to the left (use only with `~>`).
     * `foldright` Fold tables to the right (use only with `->`).
     * `rfoldleft` Fold tables to the left in reverse order (use only with `->`).
@@ -122,12 +123,13 @@ the following tables show auxiliary functions to help on that:
 
 | Purpose | Syntax | Captured Value |
 |-|-|-|
-| Substitute captures by `nil` | `p -> tonil ` | `nil` |
-| Substitute captures by `false` | `p -> tofalse ` | `false` |
-| Substitute captures by `true` | `p -> totrue ` | `true` |
-| Substitute captures by `{}` | `p -> toemptytable ` | `{}` |
-| Substitute a capture by a number | `p -> tonumber ` | Corresponding number of the captured |
-| Substitute a capture by an UTF-8 character | `p -> tochar ` | Corresponding string of the captured code |
+| Substitute captures by `nil` | `p -> tonil` | `nil` |
+| Substitute captures by `false` | `p -> tofalse` | `false` |
+| Substitute captures by `true` | `p -> totrue` | `true` |
+| Substitute captures by `{}` | `p -> toemptytable` | `{}` |
+| Substitute a capture by a number | `p -> tonumber` | Corresponding number of the captured |
+| Substitute a capture by a character byte | `p -> tochar` | Corresponding byte of the captured number |
+| Substitute a capture by UTF-8 byte sequence | `p -> toutf8char` | Corresponding UTF-8 bytes of the captured number |
 
 ## Captured node fields
 

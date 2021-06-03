@@ -1,6 +1,6 @@
 --[[
 LPegRex - LPeg Regular Expression eXtended
-v0.2.1 - 1/Jun/2021
+v0.2.2 - 3/Jun/2021
 Eduardo Bart - edub4rt@gmail.com
 https://github.com/edubart/lpegrex
 
@@ -78,7 +78,8 @@ local ErrorInfo = {
 }
 
 -- Localize some functions used in compiled PEGs.
-local utf8char = utf8 and utf8.char or string.char
+local char = string.char
+local utf8char = utf8 and utf8.char
 local select, tonumber = select, tonumber
 local insert = table.insert
 
@@ -103,7 +104,8 @@ local Predef = {
   totrue = function() return true end,
   tofalse = function() return false end,
   toemptytable = function() return {} end,
-  tochar = function(s, base) return utf8char(tonumber(s, base)) end,
+  tochar = function(s, base) return char(tonumber(s, base)) end,
+  toutf8char = function(s, base) return utf8char(tonumber(s, base)) end,
   tonumber = tonumber,
 }
 
@@ -608,5 +610,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 ]]
