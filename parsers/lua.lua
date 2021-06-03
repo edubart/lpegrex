@@ -6,7 +6,7 @@ local Grammar = [==[
 chunk         <-- SHEBANG? SKIP Block (!.)^UnexpectedSyntax
 
 Block         <== ( Label / Return / Break / Goto / Do / While / Repeat / If / ForNum / ForIn
-                  / FuncDef / FuncDecl / VarDecl / Assign / callstat / `;`)*
+                  / FuncDef / FuncDecl / VarDecl / Assign / call / `;`)*
 Label         <== `::` @NAME @`::`
 Return        <== `return` exprlist?
 Break         <== `break`
@@ -21,11 +21,10 @@ FuncDef       <== `function` @funcname funcbody
 FuncDecl      <== `local` `function` @Id funcbody
 VarDecl       <== `local` @iddecllist (`=` @exprlist)?
 Assign        <== varlist `=` @exprlist
-callstat      <-- (primaryexpr (indexsuffix+ callsuffix / callsuffix)+) ~> rfoldright
 
-Number        <== {HEX_NUMBER / DEC_NUMBER} -> tonumber SKIP
-String        <== (LONG_STRING / SHRT_STRING) SKIP
-Boolean       <== `false` -> tofalse / `true` -> totrue
+Number        <== NUMBER->tonumber SKIP
+String        <== STRING SKIP
+Boolean       <== `false`->tofalse / `true`->totrue
 Nil           <== `nil`
 Varargs       <== `...`
 Id            <== NAME
@@ -34,20 +33,25 @@ Function      <== `function` funcbody
 Table         <== `{` (field (fieldsep field)* fieldsep?)? @`}`
 Paren         <== `(` @expr @`)`
 Pair          <== `[` @expr @`]` @`=` @expr / NAME `=` @expr
+
 Call          <== callargs
 CallMethod    <== `:` @NAME @callargs
 DotIndex      <== `.` @NAME
 ColonIndex    <== `:` @NAME
 KeyIndex      <== `[` @expr @`]`
 
-funcname      <-- (Id DotIndex* ColonIndex?) ~> rfoldright
+indexsuffix   <-- DotIndex / KeyIndex
+callsuffix    <-- Call / CallMethod
+
+var           <-- (exprprimary (callsuffix+ indexsuffix / indexsuffix)+)~>rfoldright / Id
+call          <-- (exprprimary (indexsuffix+ callsuffix / callsuffix)+)~>rfoldright
+exprsuffixed  <-- (exprprimary (indexsuffix / callsuffix)*)~>rfoldright
+funcname      <-- (Id DotIndex* ColonIndex?)~>rfoldright
+
 funcbody      <-- @`(` funcargs @`)` Block @`end`
 field         <-- Pair / expr
 fieldsep      <-- `,` / `;`
-var           <-- (primaryexpr (callsuffix+ indexsuffix / indexsuffix)+) ~> rfoldright / Id
-primaryexpr   <-- Id / Paren
-indexsuffix   <-- DotIndex / KeyIndex
-callsuffix    <-- Call / CallMethod
+
 callargs      <-| `(` (expr (`,` @expr)*)? @`)` / Table / String
 idlist        <-| Id (`,` @Id)*
 iddecllist    <-| IdDecl (`,` @IdDecl)*
@@ -55,69 +59,75 @@ funcargs      <-| (Id (`,` Id)* (`,` Varargs)? / Varargs)?
 exprlist      <-| expr (`,` @expr)*
 varlist       <-| var (`,` @var)*
 
-expr          <-- expr_or
-expr_or       <-- (expr_and op_or*) ~> foldleft
-expr_and      <-- (expr_cmp op_and*) ~> foldleft
-expr_cmp      <-- (expr_bor op_cmp*) ~> foldleft
-expr_bor      <-- (expr_bxor op_bor*) ~> foldleft
-expr_bxor     <-- (expr_band op_bxor*) ~> foldleft
-expr_band     <-- (expr_bshift op_band*) ~> foldleft
-expr_bshift   <-- (expr_concat op_bshift*) ~> foldleft
-expr_concat   <-- (expr_arit op_concat*) ~> foldleft
-expr_arit     <-- (expr_fact op_arit*) ~> foldleft
-expr_fact     <-- (expr_unary op_fact*) ~> foldleft
-expr_unary    <-- (op_unary* expr_pow) -> foldright
-expr_pow      <-- (simplexpr op_pow*) ~> foldleft
-simplexpr     <-- Nil / Boolean / Number / String / Varargs / Function / Table / suffixedexpr
-suffixedexpr  <-- (primaryexpr (indexsuffix / callsuffix)*) ~> rfoldright
+opor     :BinaryOp <== `or`->'or' @exprand
+opand    :BinaryOp <== `and`->'and' @exprcmp
+opcmp    :BinaryOp <== (`==`->'eq' / `~=`->'ne' / `<=`->'le' / `>=`->'ge' / `<`->'lt' / `>`->'gt') @exprbor
+opbor    :BinaryOp <== `|`->'bor' @exprbxor
+opbxor   :BinaryOp <== `~`->'bxor' @exprband
+opband   :BinaryOp <== `&`->'band' @exprbshift
+opbshift :BinaryOp <== (`<<`->'shl' / `>>`->'shr') @exprconcat
+opconcat :BinaryOp <== `..`->'concat' @exprconcat
+oparit   :BinaryOp <== (`+`->'add' / `-`->'sub') @exprfact
+opfact   :BinaryOp <== (`*`->'mul' / `//`->'idiv' / `/`->'div' / `%`->'mod') @exprunary
+oppow    :BinaryOp <== `^`->'pow' @exprunary
+opunary  :UnaryOp  <== (`not`->'not' / `#`->'len' / `-`->'unm' / `~`->'bnot') @exprunary
 
-op_or     :BinaryOp <== `or`->'or' expr_and
-op_and    :BinaryOp <== `and`->'and' expr_cmp
-op_cmp    :BinaryOp <== (`==`->'eq' / `~=`->'ne' / `<=`->'le' / `>=`->'ge' / `<`->'lt' / `>`->'gt') expr_bor
-op_bor    :BinaryOp <== `|`->'bor' expr_bxor
-op_bxor   :BinaryOp <== `~`->'bxor' expr_band
-op_band   :BinaryOp <== `&`->'band' expr_bshift
-op_bshift :BinaryOp <== (`<<`->'shl' / `>>`->'shr') expr_concat
-op_concat :BinaryOp <== `..`->'concat' expr_concat
-op_arit   :BinaryOp <== (`+`->'add' / `-`->'sub') expr_fact
-op_fact   :BinaryOp <== (`*`->'mul' / `//`->'idiv' / `/`->'div' / `%`->'mod') expr_unary
-op_pow    :BinaryOp <== `^`->'pow' expr_unary
-op_unary  :UnaryOp  <== `not`->'not' / `#`->'len' / `-`->'unm' / `~`->'bnot'
+expr          <-- expror
+expror        <-- (exprand opor*)~>foldleft
+exprand       <-- (exprcmp opand*)~>foldleft
+exprcmp       <-- (exprbor opcmp*)~>foldleft
+exprbor       <-- (exprbxor opbor*)~>foldleft
+exprbxor      <-- (exprband opbxor*)~>foldleft
+exprband      <-- (exprbshift opband*)~>foldleft
+exprbshift    <-- (exprconcat opbshift*)~>foldleft
+exprconcat    <-- (exprarit opconcat*)~>foldleft
+exprarit      <-- (exprfact oparit*)~>foldleft
+exprfact      <-- (exprunary opfact*)~>foldleft
+exprunary     <-- opunary / exprpow
+exprpow       <-- (exprsimple oppow*)~>foldleft
+exprsimple    <-- Nil / Boolean / Number / String / Varargs / Function / Table / exprsuffixed
+exprprimary   <-- Id / Paren
 
-LONG_STRING   <-- LONG_OPEN {LONG_CONTENT} @LONG_CLOSE
+STRING        <-- STRING_SHRT / STRING_LONG
+STRING_LONG   <-- {:LONG_OPEN {LONG_CONTENT} @LONG_CLOSE:}
+STRING_SHRT   <-- {:QUOTE_OPEN {~QUOTE_CONTENT~} @QUOTE_CLOSE:}
+QUOTE_OPEN    <-- {:qe: ['"] :}
+QUOTE_CONTENT <-- (ESCAPE_SEQ / !(QUOTE_CLOSE / LINEBREAK) .)*
+QUOTE_CLOSE   <-- =qe
+ESCAPE_SEQ    <-- '\'->'' @ESCAPE
+ESCAPE        <-- [\'"] /
+                  ('n' $10 / 't' $9 / 'r' $13 / 'a' $7 / 'b' $8 / 'v' $11 / 'f' $12)->tochar /
+                  ('x' {HEX_DIGIT^2} $16)->tochar /
+                  ('u' '{' {HEX_DIGIT^+1} '}' $16)->toutf8char /
+                  ('z' SPACE*)->'' /
+                  (DEC_DIGIT DEC_DIGIT^-1 !DEC_DIGIT / [012] DEC_DIGIT^2)->tochar /
+                  (LINEBREAK $10)->tochar
+
+NUMBER        <-- {HEX_NUMBER / DEC_NUMBER}
+HEX_NUMBER    <-- '0' [xX] @HEX_PREFIX ([pP] @EXP_DIGITS)?
+DEC_NUMBER    <-- DEC_PREFIX ([eE] @EXP_DIGITS)?
+HEX_PREFIX    <-- HEX_DIGIT+ ('.' HEX_DIGIT*)? / '.' HEX_DIGIT+
+DEC_PREFIX    <-- DEC_DIGIT+ ('.' DEC_DIGIT*)? / '.' DEC_DIGIT+
+EXP_DIGITS    <-- [+-]? DEC_DIGIT+
+
+COMMENT       <-- '--' (COMMENT_LONG / COMMENT_SHRT)
+COMMENT_LONG  <-- (LONG_OPEN LONG_CONTENT @LONG_CLOSE)->0
+COMMENT_SHRT  <-- (!LINEBREAK .)*
+
 LONG_CONTENT  <-- (!LONG_CLOSE .)*
 LONG_OPEN     <-- '[' {:eq: '='*:} '[' LINEBREAK?
 LONG_CLOSE    <-- ']' =eq ']'
-SHRT_STRING   <-- SHRT_OPEN {~ SHRT_CONTENT ~} @SHRT_CLOSE
-SHRT_OPEN     <-- {:qe: ['"] :}
-SHRT_CONTENT  <-- (ESCAPE_SEQ / !(SHRT_CLOSE / LINEBREAK) .)*
-SHRT_CLOSE    <-- =qe
-ESCAPE_SEQ    <-- '\' -> '' @ESCAPE
-ESCAPE        <-- [\'"] /
-                  ('a' $7 / 'b' $8 / 't' $9 / 'n' $10 / 'v' $11 / 'f' $12 / 'r' $13) -> tochar /
-                  (LINEBREAK $10) -> tochar /
-                  ('z' %s*) -> '' /
-                  (%d %d^-1 !%d / [012] %d^2) -> tochar /
-                  ('x' {%x^2} $16) -> tochar /
-                  ('u' '{' {%x^+1} '}' $16) -> tochar
-
-HEX_NUMBER    <-- '0' [xX] @HEX_PREFIX ([pP] @EXP_DIGITS)?
-HEX_PREFIX    <-- %x+ '.'? %x+? / '.' %x+
-DEC_NUMBER    <-- DEC_PREFIX ([eE] @EXP_DIGITS)?
-DEC_PREFIX    <-- %d+ '.'? %d+? / '.' %d+
-EXP_DIGITS    <-- [+-]? %d+
 
 NAME          <-- !KEYWORD {NAME_PREFIX NAME_SUFFIX?} SKIP
-NAME_PREFIX   <-- [_%a]
-NAME_SUFFIX   <-- [_%w]+
-
-COMMENT       <-- '--' (LONG_COMMENT / SHRT_COMMENT)
-LONG_COMMENT  <-- LONG_OPEN LONG_CONTENT LONG_CLOSE
-SHRT_COMMENT  <-- (!LINEBREAK .)* LINEBREAK?
+NAME_PREFIX   <-- [_a-zA-Z]
+NAME_SUFFIX   <-- [_a-zA-Z0-9]+
 
 SHEBANG       <-- '#!' (!LINEBREAK .)* LINEBREAK?
-LINEBREAK     <-- %nl %cr / %cr %nl / %nl / %cr
-SKIP          <-- (%s+ / COMMENT)*
+SKIP          <-- (SPACE+ / COMMENT)*
+LINEBREAK     <-- %cn %cr / %cr %cn / %cn / %cr
+SPACE         <-- %sp
+HEX_DIGIT     <-- [0-9a-fA-F]
+DEC_DIGIT     <-- [0-9]
 EXTRA_TOKENS  <-- `[[` `[=` `--` -- unused rule, here just to force defining these tokens
 ]==]
 
