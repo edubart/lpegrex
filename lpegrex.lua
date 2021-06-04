@@ -571,13 +571,10 @@ function lpegrex.calcline(subject, position)
   if position < 0 then error 'invalid position' end
   local sublen = #subject
   if position > sublen then position = sublen end
-  local subs = subject:sub(1,position)
-  local rest, lineno = subs:gsub("[^\n]*\n", "")
+  local rest, lineno = subject:sub(1,position):gsub("[^\n]*\n", "")
   lineno = 1 + lineno
   local colno = #rest
-  colno = colno ~= 0 and colno or 1
-  local linestart = subs:find("\n[^\n]*$")
-  linestart = linestart and linestart+1 or 1
+  local linestart = position - colno + 1
   local lineend = subject:find("\n", position+1, true)
   lineend = lineend and lineend-1 or #subject
   local line = subject:sub(linestart, lineend)
