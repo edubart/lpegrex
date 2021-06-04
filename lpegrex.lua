@@ -563,6 +563,8 @@ function lpegrex.gsub(subject, pattern, replacement)
   return cp:match(subject)
 end
 
+local calclinepatt = lpeg.Ct(((Any - Predef.nl)^0 * lpeg.Cp() * Predef.nl)^0)
+
 --[[
 Extract line information from `position` in `subject`.
 Returns line number, column number, line content, line start position and line end position.
@@ -571,10 +573,12 @@ function lpegrex.calcline(subject, position)
   if position < 0 then error 'invalid position' end
   local sublen = #subject
   if position > sublen then position = sublen end
-  local rest, lineno = subject:sub(1,position):gsub("[^\n]*\n", "")
-  lineno = 1 + lineno
-  local colno = #rest
-  local linestart = position - colno + 1
+  local caps = calclinepatt:match(subject:sub(1,position))
+  local ncaps = #caps
+  local lineno = ncaps + 1
+  local lastpos = caps[ncaps] or 0
+  local linestart = lastpos + 1
+  local colno = position - lastpos
   local lineend = subject:find("\n", position+1, true)
   lineend = lineend and lineend-1 or #subject
   local line = subject:sub(linestart, lineend)
