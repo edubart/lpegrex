@@ -95,7 +95,6 @@ funcargs        <-| (IdDecl (`,` IdDecl)* (`,` VarargsType)? / VarargsType)?
 globaldecls     <-| globaldecl (`,` @globaldecl)*
 exprs           <-| expr (`,` @expr)*
 annots          <-| `<` @Annotation (`,` @Annotation)* @`>`
-typeexprs       <-| typeexpr (`,` @typeexpr)*
 funcrets        <-| `(` typeexpr (`,` @typeexpr)* @`)` / typeexpr
 vars            <-| var (`,` @var)*
 
@@ -246,19 +245,18 @@ local SyntaxErrorLabels = {
   ["Expected_in"]             = "expected `in` keyword in `for` statement",
   ["Expected_Annotation"]     = "expected an annotation expression",
   ["Expected_expr"]           = "expected an expression",
-  ["Expected_exprand"]        = "expected an expression for operator",
-  ["Expected_exprcmp"]        = "expected an expression for operator",
-  ["Expected_exprbor"]        = "expected an expression for operator",
-  ["Expected_exprbxor"]       = "expected an expression for operator",
-  ["Expected_exprband"]       = "expected an expression for operator",
-  ["Expected_exprbshift"]     = "expected an expression for operator",
-  ["Expected_exprconcat"]     = "expected an expression for operator",
-  ["Expected_exprfact"]       = "expected an expression for operator",
-  ["Expected_exprunary"]      = "expected an expression for operator",
-  ["Expected_exprpow"]        = "expected an expression for operator",
+  ["Expected_exprand"]        = "expected an expression after operator",
+  ["Expected_exprcmp"]        = "expected an expression after operator",
+  ["Expected_exprbor"]        = "expected an expression after operator",
+  ["Expected_exprbxor"]       = "expected an expression after operator",
+  ["Expected_exprband"]       = "expected an expression after operator",
+  ["Expected_exprbshift"]     = "expected an expression after operator",
+  ["Expected_exprconcat"]     = "expected an expression after operator",
+  ["Expected_exprfact"]       = "expected an expression after operator",
+  ["Expected_exprunary"]      = "expected an expression after operator",
   ["Expected_name"]           = "expected an identifier name",
   ["Expected_namedecl"]       = "expected an identifier name",
-  ["Expected_nameiddecl"]     = "expected an identifier name",
+  ["Expected_Id"]             = "expected an identifier name",
   ["Expected_IdDecl"]         = "expected an identifier declaration",
   ["Expected_typearg"]        = "expected an argument in type expression",
   ["Expected_typeexpr"]       = "expected a type expression",
@@ -272,7 +270,6 @@ local SyntaxErrorLabels = {
   ["Expected_typeargs"]       = "expected arguments in type expression",
   ["Expected_callargs"]       = "expected call arguments",
   ["Expected_exprs"]          = "expected expressions",
-  ["Expected_typeexprs"]      = "expected type expressions",
   ["Expected_globaldecls"]    = "expected global identifiers declaration",
   ["Expected_iddecls"]        = "expected identifiers declaration",
   ["Expected_("]              = "expected parenthesis `(`",
@@ -288,7 +285,7 @@ local SyntaxErrorLabels = {
   ["Expected_]#"]             = "unclosed preprocess expression, did you forget a `]#`?",
   ["Expected_|#"]             = "unclosed preprocess name, did you forget a `|#`?",
   ["Expected_LONG_CLOSE"]     = "unclosed long, did you forget a `]]`?",
-  ["Expected_SHRT_CLOSE"]     = "unclosed string, did you forget a quote?",
+  ["Expected_QUOTE_CLOSE"]    = "unclosed string, did you forget a quote?",
   ["Expected_ESCAPE"]         = "malformed escape sequence",
   ["Expected_BIN_PREFIX"]     = "malformed binary number",
   ["Expected_EXP_DIGITS"]     = "malformed exponential number",
