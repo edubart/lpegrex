@@ -1,6 +1,6 @@
 --[[
 LPegRex - LPeg Regular Expression eXtended
-v0.2.2 - 3/Jun/2021
+v0.2.2 - 5/Jun/2021
 Eduardo Bart - edub4rt@gmail.com
 https://github.com/edubart/lpegrex
 

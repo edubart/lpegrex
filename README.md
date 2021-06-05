@@ -27,6 +27,8 @@ The new extensions should not break any existing `re` syntax.
 This project will be later incorporated
 in the [Nelua](https://github.com/edubart/nelua-lang)
 programming language compiler.
+**This goal was accomplished, and LPegRex is the new parsing engine
+for the Nelua compiler.**
 
 ## Additional Features
 
@@ -493,6 +495,12 @@ translation-unit
 | | | | | integer-constant
 | | | | | | "0"
 ```
+
+## Successful use case
+
+LPegRex is successfully used as the parsing engine in the Nelua programming
+language compiler, you can see the complete syntax defined in a single
+PEG grammar [in this file](https://github.com/edubart/nelua-lang/blob/master/nelua/syntaxdefs.lua).
 
 ## Tests
 
