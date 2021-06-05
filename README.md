@@ -1,6 +1,6 @@
 # LPegRex
 
-LPegRex is an re-implementation of
+LPegRex is a re-implementation of
 [LPeg](http://www.inf.puc-rio.br/~roberto/lpeg/)/
 [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
 `re` module with some extensions to make
@@ -11,7 +11,7 @@ LPegRex stands for *LPeg Regular Expression eXtended*.
 
 ## Goals
 
-The goal of this library is to extended the LPeg
+The goal of this library is to extend the LPeg
 [re module](http://www.inf.puc-rio.br/~roberto/lpeg/re.html)
 with some minor additions to make easy parsing a whole
 programming language grammar to an abstract syntax tree
