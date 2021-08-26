@@ -550,16 +550,16 @@ statement <--
   `;`
 
 label-statement <==
-  identifier `:` @statement
+  identifier `:`
 
 case-statement <==
-  `case` @constant-expression @`:` @statement
+  `case` @constant-expression @`:` statement?
 
 default-statement <==
-  `default` @`:` @statement
+  `default` @`:` statement?
 
 compound-statement <==
-  `{` (declaration / statement)* @`}`
+  `{` (label-statement / declaration / statement)* @`}`
 
 expression-statement <==
   expression @`;`
