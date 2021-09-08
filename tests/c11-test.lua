@@ -1,11 +1,11 @@
 local parse_c11 = require 'parsers.c11'
-local astutil = require 'parsers.astutil'
+local lpegrex = require 'lpegrex'
 local lester = require 'tests.lester'
 
 local describe, it = lester.describe, lester.it
 
 local function eqast(source, expected)
-  local aststr = astutil.ast2string(parse_c11(source))
+  local aststr = lpegrex.prettyast(parse_c11(source))
   expected = expected:gsub('^%s+', ''):gsub('%s+$', '')
   if not aststr:find(expected, 1, true) then
     error('expected to match second in first value\nfirst value:\n'..aststr..'\nsecond value:\n'..expected)
@@ -22,7 +22,7 @@ end)
 
 it("escape sequence", function()
   eqast([[const char* s = "\'\"\?\a\b\f\n\r\t\v\\\000\xffff";]],
-        [["\\\'\\\"\\?\\a\\b\\f\\n\\r\\t\\v\\\\\\000\\xffff"]])
+        [["\\'\\\"\\?\\a\\b\\f\\n\\r\\t\\v\\\\\\000\\xffff"]])
 end)
 
 it("external declaration", function()

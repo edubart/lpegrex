@@ -1,5 +1,5 @@
 local parse_lua = require 'parsers.lua'
-local asttools = require 'parsers.astutil'
+local lpegrex = require 'lpegrex'
 
 -- Read input file contents
 local filename = arg[1]
@@ -15,4 +15,4 @@ file:close()
 local ast = parse_lua(source, filename)
 
 -- Print AST
-print(asttools.ast2string(ast))
+print(lpegrex.prettyast(ast))
