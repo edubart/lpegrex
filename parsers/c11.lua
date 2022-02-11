@@ -1,7 +1,8 @@
 --[[
 This grammar is based on the C11 specification.
 As seen in https://port70.net/~nsz/c/c11/n1570.html#A.1
-Some extensions to use with GCC/Clang were also added.
+Support for parsing some new C2x syntax were also added.
+Support for some extensions to use with GCC/Clang were also added.
 ]]
 local Grammar = [==[
 chunk <- SHEBANG? SKIP translation-unit (!.)^UnexpectedSyntax
@@ -21,8 +22,16 @@ NAME_SUFFIX   <-- identifier-suffix
 --------------------------------------------------------------------------------
 -- Identifiers
 
-identifier <== !KEYWORD
+identifier <== identifier-word
+
+identifier-word <--
+  !KEYWORD identifier-anyword
+
+identifier-anyword <--
   {identifier-nondigit identifier-suffix?} SKIP
+
+free-identifier:identifier <==
+  identifier-word
 
 identifier-suffix <- (identifier-nondigit / digit)+
 identifier-nondigit <- [a-zA-Z_] / universal-character-name
@@ -98,7 +107,7 @@ binary-exponent-part <-- [pP] sign? digit-sequence
 hexadecimal-digit-sequence <-- hexadecimal-digit+
 floating-suffix <-- [flFL]
 
-enumeration-constant <==
+enumeration-constant <--
   identifier
 
 character-constant <==
@@ -131,7 +140,7 @@ hexadecimal-escape-sequence <-- '\x' hexadecimal-digit+
 string-literal <==
   encoding-prefix? string-suffix+
 string-suffix <-- '"' {s-char-sequence?} '"' SKIP
-encoding-prefix <-- 'u8' / 'u' / 'U' / 'L'
+encoding-prefix <-- 'u8' / [uUL]
 s-char-sequence <-- s-char+
 s-char <- [^"\%cn%cr] / escape-sequence
 
@@ -139,10 +148,10 @@ s-char <- [^"\%cn%cr] / escape-sequence
 -- Expressions
 
 primary-expression <--
+  string-literal /
   type-name /
   identifier /
   constant /
-  string-literal /
   statement-expression /
   `(` expression `)` /
   generic-selection
@@ -182,8 +191,8 @@ postfix-expression-suffix <--
 
 array-subscript <== `[` expression `]`
 argument-expression <== `(` argument-expression-list? `)`
-struct-or-union-member <== `.` identifier
-pointer-member <== `->` identifier
+struct-or-union-member <== `.` identifier-word
+pointer-member <== `->` identifier-word
 post-increment <== `++`
 post-decrement <== `--`
 
@@ -204,7 +213,7 @@ cast-expression <--
   op-cast /
   unary-expression
 op-cast:binary-op <==
-  `(` $'cast' type-name `)` cast-expression
+  `(` type-name `)` $'cast' cast-expression
 
 multiplicative-expression <--
   (cast-expression op-multiplicative*) ~> foldleft
@@ -302,30 +311,34 @@ extension-specifiers <==
   extension-specifier+
 
 extension-specifier <==
-  attribute / asm / extension
+  attribute / asm / tg-promote
 
 attribute <==
-  (`__attribute__` / `__attribute`) `(` @`(` @attribute-list @`)` @`)`
+  (`__attribute__` / `__attribute`) `(` @`(` attribute-list @`)` @`)` /
+  `[` `[` attribute-list @`]` @`]`
 
-attribute-list <==
+attribute-list <--
   attribute-item (`,` attribute-item)*
 
+tg-promote <==
+  `__tg_promote` @`(` (expression / parameter-varargs) @`)`
+
 attribute-item <==
-  identifier (`(` expression (`,` expression)* `)`)?
+  identifier-anyword (`(` expression `)`)?
 
 asm <==
   (`__asm` / `__asm__`)
-  (`__volatile__` / `volatile`)?
+  (`__volatile__` / `volatile`)~?
   `(` asm-argument (`,` asm-argument)* @`)`
 
 asm-argument <-- (
     string-literal /
     {`:`} /
+    {`,`} /
+    `[` expression @`]` /
+    `(` expression @`)` /
     expression
   )+
-
-extension <==
-  `__extension__`
 
 typedef-declaration <==
   `typedef` @declaration-specifiers (typedef-declarator (`,` @typedef-declarator)*)?
@@ -333,13 +346,16 @@ typedef-declaration <==
 type-declaration <==
   declaration-specifiers init-declarator-list?
 
-declaration-specifiers <== (
-    storage-class-specifier /
-    type-specifier /
-    type-qualifier /
-    function-specifier /
-    alignment-specifier
-  )+
+declaration-specifiers <==
+  ((type-specifier-width / declaration-specifiers-aux)* type-specifier /
+    declaration-specifiers-aux* type-specifier-width
+  ) (type-specifier-width / declaration-specifiers-aux)*
+
+declaration-specifiers-aux <--
+  storage-class-specifier /
+  type-qualifier /
+  function-specifier /
+  alignment-specifier
 
 init-declarator-list <==
   init-declarator (`,` init-declarator)*
@@ -350,45 +366,55 @@ init-declarator <==
 storage-class-specifier <==
   {`extern`} /
   {`static`} /
-  {`_Thread_local`} /
   {`auto`} /
   {`register`} /
-  {`__thread`}
+  (`_Thread_local` / `__thread`)->'_Thread_local'
 
 type-specifier <==
   {`void`} /
   {`char`} /
-  {`short`} /
   {`int`} /
-  {`long`} /
   {`float`} /
   {`double`} /
-  {`signed`} /
-  {`unsigned`} /
   {`_Bool`} /
-  {`_Complex`} /
-  {`_Imaginary`} /
   atomic-type-specifier /
   struct-or-union-specifier /
   enum-specifier /
   typedef-name /
   typeof
 
+type-specifier-width : type-specifier <==
+  {`short`} /
+  (`signed` / `__signed` / `__signed__`)->'signed' /
+  {`unsigned`} /
+  (`long` `long`)->'long long' /
+  {`long`} /
+  {`_Complex`} /
+  {`_Imaginary`}
+
+typeof <==
+  (`typeof` / `__typeof` / `__typeof__`) @argument-expression
+
 struct-or-union-specifier <==
-  struct-or-union extension-specifiers? identifier? (`{` struct-declaration-list? `}`)?
+  struct-or-union extension-specifiers~? identifier-word~? (`{` struct-declaration-list `}`)?
 
 struct-or-union <--
-  {`struct`} /
-  {`union`}
+  {`struct`} / {`union`}
 
 struct-declaration-list <==
-  (struct-declaration / static_assert-declaration)+
+  (struct-declaration / static_assert-declaration)*
 
 struct-declaration <==
   specifier-qualifier-list struct-declarator-list? @`;`
 
 specifier-qualifier-list <==
-  (type-specifier / type-qualifier)+
+  ((type-specifier-width / specifier-qualifier-aux)* type-specifier /
+    specifier-qualifier-aux* type-specifier-width
+  ) (type-specifier-width / specifier-qualifier-aux)*
+
+specifier-qualifier-aux <--
+  type-qualifier /
+  alignment-specifier
 
 struct-declarator-list <==
   struct-declarator (`,` struct-declarator)*
@@ -398,7 +424,7 @@ struct-declarator <==
   `:` $false @constant-expression
 
 enum-specifier <==
-  `enum` (identifier? `{` @enumerator-list `,`? @`}` / @identifier)
+  `enum` extension-specifiers~? (identifier-word~? `{` @enumerator-list `,`? @`}` / @identifier-word)
 
 enumerator-list <==
   enumerator (`,` enumerator)*
@@ -411,18 +437,17 @@ atomic-type-specifier <==
 
 type-qualifier <==
   {`const`} /
-  {`restrict`} / (`__restrict` / `__restrict__`)->'restrict' /
+  (`restrict` / `__restrict` / `__restrict__`)->'restrict' /
   {`volatile`} /
-  {`_Atomic`} /
+  {`_Atomic`} !`(` /
   extension-specifier
 
 function-specifier <==
-  {`inline`} / (`__inline` / `__inline__`)->'inline' /
+  (`inline` / `__inline` / `__inline__`)->'inline' /
   {`_Noreturn`}
 
 alignment-specifier <==
-  `_Alignas` `(` type-name `)` /
-  `_Alignas` `(` constant-expression `)`
+  `_Alignas` `(` (type-name / constant-expression) `)`
 
 declarator <==
   (pointer* direct-declarator) -> foldright
@@ -443,17 +468,17 @@ direct-declarator-suffix <--
   declarator-parameters
 
 declarator-subscript <==
-  `[` type-qualifier-list? assignment-expression? `]` /
-  `[` &`static` storage-class-specifier type-qualifier-list? assignment-expression @`]` /
-  `[` type-qualifier-list &`static` storage-class-specifier assignment-expression @`]` /
-  `[` type-qualifier-list? pointer @`]`
+  `[` subscript-qualifier-list~? (assignment-expression / pointer)~? @`]`
+
+subscript-qualifier-list <==
+  (type-qualifier / &`static` storage-class-specifier)+
 
 declarator-parameters <==
   `(` parameter-type-list `)` /
   `(` identifier-list? `)`
 
 pointer <==
-  `*` type-qualifier-list?
+  extension-specifiers~? `*` type-qualifier-list~?
 
 type-qualifier-list <==
   type-qualifier+
@@ -471,14 +496,13 @@ parameter-declaration <==
   declaration-specifiers (declarator / abstract-declarator?)
 
 identifier-list <==
-  identifier (`,` @identifier)*
+  identifier-list-item (`,` @identifier-list-item)*
+
+identifier-list-item <--
+  identifier / `(` type-name @`)`
 
 type-name <==
-  specifier-qualifier-list+ abstract-declarator? /
-  typeof
-
-typeof <==
-  `__typeof__` @argument-expression
+  specifier-qualifier-list abstract-declarator?
 
 abstract-declarator:declarator <==
   (
@@ -523,10 +547,10 @@ subscript-designator <==
   `[` @constant-expression @`]`
 
 member-designator <==
-  `.` @identifier
+  `.` @identifier-word
 
 static_assert-declaration <==
-  `_Static_assert` @`(` @constant-expression @`,` @string-literal @`)`
+  `_Static_assert` @`(` @constant-expression (`,` @string-literal)? @`)`
 
 --------------------------------------------------------------------------------
 -- Statements
@@ -547,6 +571,7 @@ statement <--
   break-statement /
   return-statement /
   asm-statement /
+  attribute /
   `;`
 
 label-statement <==
@@ -610,7 +635,6 @@ function-definition <==
 
 declaration-list <==
   declaration*
-
 ]==]
 
 -- List of syntax errors
@@ -622,10 +646,10 @@ local SyntaxErrorLabels = {
 local builtin_typedefs = {
   __builtin_va_list = true,
   __auto_type = true,
-  __int128 = true,
+  __int128 = true, __int128_t = true,
   _Float32 = true, _Float32x = true,
   _Float64 = true, _Float64x = true,
-  _Float128 = true,
+  __float128 = true, _Float128 = true,
 }
 
 -- Parsing typedefs identifiers in C11 requires context information.
