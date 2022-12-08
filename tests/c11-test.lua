@@ -21,8 +21,8 @@ it("basic", function()
 end)
 
 it("escape sequence", function()
-  eqast([[const char* s = "\'\"\?\a\b\f\n\r\t\v\\\000\xffff";]],
-        [["\\'\\\"\\?\\a\\b\\f\\n\\r\\t\\v\\\\\\000\\xffff"]])
+  eqast([[const char* s = "\'\"\?\a\b\f\n\r\t\v\\\000\xff";]],
+        [["'\"?\x07\x08\x0c\n\r\t\x0b\\\x00\xff"]])
 end)
 
 it("external declaration", function()

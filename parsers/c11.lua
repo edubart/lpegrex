@@ -69,12 +69,11 @@ octal-digit <--  [0-7]
 hexadecimal-digit <-- [0-9a-fA-F]
 
 integer-suffix <--
-  unsigned-suffix (long-long-suffix / long-suffix)? /
-  (long-long-suffix / long-suffix) unsigned-suffix?
+  unsigned-suffix (long-suffix long-suffix?)? /
+  (long-suffix long-suffix?) unsigned-suffix?
 
 unsigned-suffix <-- [uU]
 long-suffix <-- [lL]
-long-long-suffix <-- 'll' / 'LL'
 
 floating-constant <==
   {decimal-floating-constant} /
@@ -105,16 +104,13 @@ hexadecimal-fractional-constant <--
 
 binary-exponent-part <-- [pP] sign? digit-sequence
 hexadecimal-digit-sequence <-- hexadecimal-digit+
-floating-suffix <-- [flFL]
+floating-suffix <-- [fFlLqQ]
 
 enumeration-constant <--
   identifier
 
 character-constant <==
- "'" {c-char-sequence} "'" /
- "L'" {c-char-sequence} "'" /
- "u'" {c-char-sequence} "'" /
- "U'" {c-char-sequence} "'"
+ [LUu]? "'" {~c-char-sequence~} "'"
 
 c-char-sequence <-- c-char+
 c-char <--
@@ -128,18 +124,22 @@ escape-sequence <--
  universal-character-name
 
 simple-escape-sequence <--
- "\'" / '\"' / "\?" / "\\" /
- "\a" / "\b" / "\f" / "\n" / "\r" / "\t" / "\v"
+ "\"->'' simple-escape-sequence-suffix
 
-octal-escape-sequence <-- '\' octal-digit^-3
-hexadecimal-escape-sequence <-- '\x' hexadecimal-digit+
+simple-escape-sequence-suffix <-
+  [\'"?] /
+  ("a" $7 / "b" $8 / "f" $12 / "n" $10 / "r" $13 / "t" $9 / "v" $11) ->tochar /
+  (LINEBREAK $10)->tochar
+
+octal-escape-sequence <-- ('\' {octal-digit octal-digit^-2} $8)->tochar
+hexadecimal-escape-sequence <-- ('\x' {hexadecimal-digit+} $16)->tochar
 
 --------------------------------------------------------------------------------
 -- String literals
 
 string-literal <==
   encoding-prefix? string-suffix+
-string-suffix <-- '"' {s-char-sequence?} '"' SKIP
+string-suffix <-- '"' {~s-char-sequence?~} '"' SKIP
 encoding-prefix <-- 'u8' / [uUL]
 s-char-sequence <-- s-char+
 s-char <- [^"\%cn%cr] / escape-sequence
@@ -157,7 +157,7 @@ primary-expression <--
   generic-selection
 
 statement-expression <==
-  '({'SKIP (declaration / statement)* '})'SKIP
+  '({'SKIP (label-statement / declaration / statement)* '})'SKIP
 
 generic-selection <==
   `_Generic` @`(` @assignment-expression @`,` @generic-assoc-list @`)`
@@ -173,10 +173,8 @@ postfix-expression <--
   (postfix-expression-prefix postfix-expression-suffix*) ~> rfoldright
 
 postfix-expression-prefix <--
-  (
-    type-initializer  /
-    primary-expression
-  )
+  type-initializer  /
+  primary-expression
 
 type-initializer <==
   `(` type-name `)` `{` initializer-list? `,`? `}`
@@ -190,14 +188,14 @@ postfix-expression-suffix <--
   post-decrement
 
 array-subscript <== `[` expression `]`
-argument-expression <== `(` argument-expression-list? `)`
+argument-expression <== `(` argument-expression-list `)`
 struct-or-union-member <== `.` identifier-word
 pointer-member <== `->` identifier-word
 post-increment <== `++`
 post-decrement <== `--`
 
 argument-expression-list <==
-  assignment-expression (`,` assignment-expression)*
+  (assignment-expression (`,` assignment-expression)*)?
 
 unary-expression <--
   unary-op /
@@ -259,7 +257,7 @@ op-inclusive-OR:binary-op <==
 logical-AND-expression <--
   (inclusive-OR-expression op-logical-AND*) ~> foldleft
 op-logical-AND:binary-op <==
-  {'&&'} SKIP @inclusive-OR-expression
+  {`&&`} @inclusive-OR-expression
 
 logical-OR-expression <--
   (logical-AND-expression op-logical-OR*) ~> foldleft
@@ -271,12 +269,11 @@ conditional-expression <--
 op-conditional:ternary-op <==
   {`?`} @expression @`:` @conditional-expression
 
-op-assignment:binary-op <==
-  unary-expression assignment-operator @assignment-expression
 assignment-expression <--
-  op-assignment /
-  conditional-expression
-
+  conditional-expression !assignment-operator /
+  (unary-expression op-assignment+) ~> foldleft
+op-assignment:binary-op <==
+  assignment-operator @assignment-expression
 assignment-operator <--
   {`=`} /
   {`*=`} /
@@ -385,7 +382,7 @@ type-specifier <==
 
 type-specifier-width : type-specifier <==
   {`short`} /
-  (`signed` / `__signed` / `__signed__`)->'signed' /
+  (`signed` / `__signed__`)->'signed' /
   {`unsigned`} /
   (`long` `long`)->'long long' /
   {`long`} /
@@ -396,13 +393,14 @@ typeof <==
   (`typeof` / `__typeof` / `__typeof__`) @argument-expression
 
 struct-or-union-specifier <==
-  struct-or-union extension-specifiers~? identifier-word~? (`{` struct-declaration-list `}`)?
+  struct-or-union extension-specifiers~?
+  (identifier-word struct-declaration-list? / $false struct-declaration-list)
 
 struct-or-union <--
   {`struct`} / {`union`}
 
 struct-declaration-list <==
-  (struct-declaration / static_assert-declaration)*
+  `{` (struct-declaration / static_assert-declaration)* @`}`
 
 struct-declaration <==
   specifier-qualifier-list struct-declarator-list? @`;`
@@ -430,7 +428,7 @@ enumerator-list <==
   enumerator (`,` enumerator)*
 
 enumerator <==
-  enumeration-constant (`=` @constant-expression)?
+  enumeration-constant extension-specifiers~? (`=` @constant-expression)?
 
 atomic-type-specifier <==
   `_Atomic` `(` type-name `)`
