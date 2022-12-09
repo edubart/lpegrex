@@ -502,6 +502,10 @@ LPegRex is successfully used as the parsing engine in the Nelua programming
 language compiler, you can see the complete syntax defined in a single
 PEG grammar [in this file](https://github.com/edubart/nelua-lang/blob/master/nelua/syntaxdefs.lua).
 
+## Try it online
+
+You can test and prototype grammars with LPegRex live in the browser using the cool [lua-wasm-playground](https://mingodad.github.io/lua-wasm-playground/) tool created by [@mingodad](https://github.com/mingodad/lua-wasm-playground). There are C11 and Lua parsers as examples there.
+
 ## Tests
 
 Most LPeg/LPegLabel tests where migrated into `tests/lpegrex-test.lua`
