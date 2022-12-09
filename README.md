@@ -294,6 +294,59 @@ local ast = { tag = "Array", pos = 1, endpos = 73,
 A JSON parser similar to this example can be found in
 [parsers/json.lua](https://github.com/edubart/lpegrex/blob/main/parsers/json.lua).
 
+## Debugging rule entry and exit
+
+When prototyping complex grammars you may want to debug the rules that
+the parser is trying to match and the ones that were successfully matched.
+You can enable LPegRex debug mode for this
+by setting `lpegrex.debug = true` globally.
+When debug is enabled all compiled grammars will be compiled in debug mode.
+
+When debugging is enabled every attempt to match a rule will print
+`ENTER <rulename> (<lineno>:<colno>)` to `io.stderr`,
+and every rule successfully matched will print
+`LEAVE <rulename> (<lineno>:<colno>)` to `io.stderr`.
+Notice that rules failing to match will not print `LEAVE`.
+
+The following is an example of parsing `{"string":` JSON chunk
+using the JSON parser shown above with debugging enabled:
+
+```
+ENTER Json (1:1)
+ENTER SKIP (1:1)
+LEAVE SKIP (1:1)
+ENTER Object (1:1)
+ENTER { (1:1)
+ENTER Array (1:1)
+ENTER [ (1:1)
+ENTER SKIP (1:2)
+LEAVE SKIP (1:2)
+LEAVE [ (1:2)
+ENTER Value (1:2)
+ENTER String (1:2)
+ENTER Number (1:2)
+ENTER Object (1:2)
+ENTER { (1:2)
+ENTER SKIP (1:3)
+LEAVE SKIP (1:3)
+LEAVE { (1:3)
+ENTER Member (1:3)
+ENTER String (1:3)
+ENTER SKIP (1:11)
+LEAVE SKIP (1:11)
+LEAVE String (1:11)
+ENTER : (1:11)
+ENTER SKIP (1:12)
+LEAVE SKIP (1:12)
+LEAVE : (1:12)
+```
+
+Notice `String` ENTER at `1:3` and LEAVE at `1:11`,
+this means that we have matched the rule `String` in that range.
+Notice `Number` ENTER at `1:2` while no LEAVE is shown for `Number`,
+this means that we attempted to match `Number`
+but it failed since no LEAVE was shown afterwards.
+
 ## Installing
 
 To use LPegRex you need [LPegLabel](https://github.com/sqmedeiros/lpeglabel)
